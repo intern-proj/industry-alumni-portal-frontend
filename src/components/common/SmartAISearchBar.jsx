@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { aiService } from '../../services/aiService';
+import { useLocation } from 'react-router-dom';
 
 /**
  * SmartAISearchBar
@@ -10,6 +12,8 @@ export default function SmartAISearchBar({
   value = '',
   onChange,
   onSearch,
+  onUniversalSearch,
+  enableUniversalSearch = false,
   placeholder = 'Search by keyword, role, or company...',
   aiPlaceholder = 'Smart AI search by role, skill, or location...',
   searchType = 'vacancies',
@@ -18,6 +22,7 @@ export default function SmartAISearchBar({
   className = ''
 }) {
   const { user } = useAuth();
+  const location = useLocation();
   
   // Allow AI search if authenticated as STUDENT or INDUSTRY_PARTNER
   // OR if unauthenticated guest searching for vacancies or partners (as requested)
@@ -28,6 +33,7 @@ export default function SmartAISearchBar({
 
   const [isAiMode, setIsAiMode] = useState(false);
   const [internalQuery, setInternalQuery] = useState(value);
+  const [isUniversalLoading, setIsUniversalLoading] = useState(false);
 
   const handleToggleAiMode = () => {
     if (!effectiveShowAiToggle) return;
@@ -49,9 +55,30 @@ export default function SmartAISearchBar({
     }
   };
 
-  const triggerSearch = () => {
-    if (onSearch) {
-      onSearch(internalQuery, isAiMode);
+  const triggerSearch = async () => {
+    if (isAiMode && enableUniversalSearch && internalQuery.trim()) {
+      setIsUniversalLoading(true);
+      try {
+        const response = await aiService.universalSmartSearch(
+          internalQuery, 
+          location.pathname, 
+          user?.role || user?.userRole || 'STUDENT'
+        );
+        if (onUniversalSearch) {
+          onUniversalSearch(response.data);
+        }
+      } catch (error) {
+        console.error("Universal Search failed, falling back to local search", error);
+        if (onSearch) {
+          onSearch(internalQuery, isAiMode);
+        }
+      } finally {
+        setIsUniversalLoading(false);
+      }
+    } else {
+      if (onSearch) {
+        onSearch(internalQuery, isAiMode);
+      }
     }
   };
 
@@ -131,10 +158,10 @@ export default function SmartAISearchBar({
           <button
             type="button"
             onClick={triggerSearch}
-            disabled={loading}
+            disabled={loading || isUniversalLoading}
             className={`p-2 rounded-lg transition-all flex items-center justify-center bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500/30 backdrop-blur-sm`}
           >
-            {loading ? (
+            {loading || isUniversalLoading ? (
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <span className="material-symbols-outlined text-[18px]">search</span>

@@ -56,8 +56,11 @@ export const authService = {
   completePartnerRegistration: (registrationToken, username, password) =>
     api.post('/auth/partner/complete-registration', { registrationToken, username, password }),
 
-  // Stage 1 Partner Approvals
+  // Partner Profile Management
   getPartnerProfile: () => api.get('/auth/partner/me'),
+  updatePartnerProfile: (data) => api.put('/auth/partner/me', data),
+  getPartnerDirectory: () => api.get('/auth/partner/directory'),
+  getPartnerById: (id) => api.get(`/auth/partner/directory/${id}`),
 
   // Stage 1 Partner Approvals
   getPendingPartners: () =>

@@ -23,6 +23,9 @@ export const storageService = {
   downloadFile: (id) =>
     api.get(`/storage/download/${id}`, { responseType: 'blob' }),
 
+  // Generate file URL for image src
+  getFileUrl: (id) => id ? `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'}/storage/download/${id}` : null,
+
   // Delete file
   deleteFile: (id) => api.delete(`/storage/${id}`),
 

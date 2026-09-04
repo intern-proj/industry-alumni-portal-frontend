@@ -48,9 +48,6 @@ export default function MyEvents() {
           <Link to="/events">
             <Button variant="outline" icon="explore">Browse Events</Button>
           </Link>
-          <Link to="/student/check-in">
-            <Button icon="qr_code_scanner">Check-in via Code</Button>
-          </Link>
         </div>
       </div>
 
@@ -88,9 +85,6 @@ export default function MyEvents() {
                     <Badge variant={reg.status === 'ATTENDED' ? 'success' : 'info'}>
                       {reg.status || 'REGISTERED'}
                     </Badge>
-                    <Link to="/student/check-in">
-                      <Button variant="outline" size="sm" icon="qr_code">Verify</Button>
-                    </Link>
                   </div>
                 </div>
               ))}

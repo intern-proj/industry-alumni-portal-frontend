@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-
-const storageKey = 'portal_system_banners_data';
+import bannerService from '../../services/bannerService';
 
 // Default color options admins can choose when creating banners
 const BANNER_COLORS = [
@@ -38,12 +37,16 @@ function BannerTickerItem({ banner, onDismiss }) {
     return () => window.removeEventListener('resize', checkOverflow);
   }, [banner.message]);
 
-  // Priority icon
-  const icon = banner.priority === 'HIGH' || banner.priority === 'URGENT'
-    ? 'warning'
-    : banner.priority === 'MEDIUM'
-    ? 'campaign'
-    : 'info';
+  // Editable / Contextual icon
+  const icon = banner.icon || (
+    banner.type === 'MAINTENANCE'
+      ? 'engineering'
+      : banner.priority === 'HIGH' || banner.priority === 'URGENT'
+      ? 'warning'
+      : banner.priority === 'MEDIUM'
+      ? 'campaign'
+      : 'info'
+  );
 
   return (
     <div
@@ -86,20 +89,20 @@ function BannerTickerItem({ banner, onDismiss }) {
 
         {isOverflowing ? (
           <div
-            className={`animate-marquee-ticker inline-flex items-center gap-16 font-semibold text-sm tracking-wide px-4 ${isPaused ? '[animation-play-state:paused]' : ''}`}
+            className={`animate-marquee-ticker inline-flex items-center gap-12 font-medium text-sm tracking-wide px-4 ${isPaused ? '[animation-play-state:paused]' : ''}`}
             style={{ color: textColor }}
           >
             <span>{banner.message}</span>
-            <span style={{ opacity: 0.4 }}>•</span>
+            <span style={{ opacity: 0.25 }} className="mx-2">|</span>
             <span>{banner.message}</span>
-            <span style={{ opacity: 0.4 }}>•</span>
+            <span style={{ opacity: 0.25 }} className="mx-2">|</span>
             <span>{banner.message}</span>
-            <span style={{ opacity: 0.4 }}>•</span>
+            <span style={{ opacity: 0.25 }} className="mx-2">|</span>
           </div>
         ) : (
           <div
             ref={textRef}
-            className="px-4 font-semibold text-sm tracking-wide truncate"
+            className="px-4 font-medium text-sm tracking-wide truncate"
             style={{ color: textColor }}
           >
             {banner.message}
@@ -133,33 +136,21 @@ export default function GlobalBannerBar() {
   const [dismissedIds, setDismissedIds] = useState([]);
 
   useEffect(() => {
-    function loadBanners() {
+    async function fetchBanners() {
       try {
-        const saved = localStorage.getItem(storageKey);
-        if (!saved) { setActiveBanners([]); return; }
-        const parsed = JSON.parse(saved);
-        if (!Array.isArray(parsed)) return;
-        const today = new Date().toISOString().split('T')[0];
-        const valid = parsed.filter((b) => {
-          if (!b.active) return false;
-          if (b.startDate && b.startDate > today) return false;
-          if (b.endDate && b.endDate < today) return false;
-          return true;
-        });
-        setActiveBanners(valid);
-      } catch { setActiveBanners([]); }
+        const banners = await bannerService.getActiveBanners();
+        setActiveBanners(banners);
+      } catch (error) {
+        console.error('Failed to load active banners:', error);
+      }
     }
-
-    loadBanners();
-    window.addEventListener('storage', loadBanners);
-    window.addEventListener('bannersUpdated', loadBanners);
-    return () => {
-      window.removeEventListener('storage', loadBanners);
-      window.removeEventListener('bannersUpdated', loadBanners);
-    };
+    fetchBanners();
   }, []);
 
-
+  // Guarantee banner is never displayed on any admin page or dashboard
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
 
   const visibleBanners = activeBanners.filter((b) => !dismissedIds.includes(b.id));
   if (visibleBanners.length === 0) return null;

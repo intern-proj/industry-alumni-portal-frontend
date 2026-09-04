@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -7,10 +8,37 @@ import { userService } from '../../services/userService';
 import { aiService } from '../../services/aiService';
 
 export default function PartnerAITalentSearch() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
+  const [candidatePool, setCandidatePool] = useState([]);
   const [query, setQuery] = useState('');
-  const [invitedMap, setInvitedMap] = useState({});
+
+  const mapCandidate = (u, i) => {
+    const cleanLast = (u.lastName && u.lastName.toLowerCase() !== 'candidate') ? u.lastName : '';
+    const candidateName = `${u.firstName || ''} ${cleanLast}`.trim() || u.username || '';
+    let parsedProjects = [];
+    if (u.projects) {
+      try {
+        parsedProjects = typeof u.projects === 'string' ? JSON.parse(u.projects) : u.projects;
+      } catch {
+        parsedProjects = [];
+      }
+    }
+    return {
+      id: u.userId || u.id || `usr-${i}`,
+      userId: u.userId || u.id,
+      name: candidateName,
+      match: Math.max(75, 96 - i * 4),
+      skills: u.skills?.map(s => typeof s === 'string' ? s : (s.skillName || s.name)) || [],
+      projects: Array.isArray(parsedProjects) ? parsedProjects : [],
+      program: u.academicRecord?.degreeProgram || u.degreeProgram || '',
+      faculty: u.academicRecord?.faculty || u.faculty || '',
+      gpa: u.academicRecord?.gpa || u.gpa || '',
+      profilePicUrl: u.profilePicUrl || null,
+      isActivelyLooking: u.isActivelyLooking === true
+    };
+  };
 
   useEffect(() => {
     fetchInitialTalent();
@@ -19,24 +47,19 @@ export default function PartnerAITalentSearch() {
   const fetchInitialTalent = async () => {
     setLoading(true);
     try {
-      const res = await userService.searchUsersBySkills(['Java', 'React', 'Docker', 'Python']);
+      const res = await userService.searchUsersBySkills(['Java', 'React', 'Docker', 'Python', 'Spring Boot', 'TypeScript', 'Node.js', 'Git']);
       const data = res.data?.data || res.data || [];
-      if (Array.isArray(data)) {
-        setResults(data.map((u, i) => ({
-          id: u.userId || u.id || `usr-${i}`,
-          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Candidate',
-          match: Math.max(75, 95 - i * 4),
-          skills: u.skills?.map(s => typeof s === 'string' ? s : s.skillName) || ['Software Development'],
-          program: u.faculty || 'BSc (Hons) in Software Engineering',
-          faculty: u.faculty || 'Faculty of Computing',
-          gpa: u.gpa || '3.80',
-          isActivelyLooking: u.isActivelyLooking !== false
-        })));
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(mapCandidate);
+        setResults(mapped);
+        setCandidatePool(mapped);
       } else {
         setResults([]);
+        setCandidatePool([]);
       }
     } catch {
       setResults([]);
+      setCandidatePool([]);
     } finally {
       setLoading(false);
     }
@@ -44,45 +67,65 @@ export default function PartnerAITalentSearch() {
 
   const handleSearch = async (searchTerm, isAiMode) => {
     setQuery(searchTerm);
-    if (!searchTerm) {
-      fetchInitialTalent();
+    const trimmed = (searchTerm || '').trim();
+    if (!trimmed) {
+      setResults(candidatePool);
       return;
     }
     setLoading(true);
 
     try {
-      if (isAiMode && results.length > 0) {
-        // Route through AI Service Smart NLP Search
-        const res = await aiService.smartSearchCandidates(searchTerm, results);
-        const searchResults = res.data?.results || [];
-        if (searchResults.length > 0) {
-          setResults(searchResults.map(r => ({
-            ...r.item,
-            match: r.match_score,
-            reasons: r.highlight_reasons
-          })));
+      if (isAiMode) {
+        // AI NLP Semantic Search Mode
+        let pool = candidatePool.length > 0 ? candidatePool : results;
+        if (pool.length === 0) {
+          const res = await userService.searchUsersBySkills(['Java', 'React', 'Docker', 'Python']);
+          const raw = res.data?.data || res.data || [];
+          pool = Array.isArray(raw) ? raw.map(mapCandidate) : [];
+          setCandidatePool(pool);
         }
-      } else {
-        // Standard keyword search
-        const skillsArray = searchTerm.split(/[\s,]+/).filter(s => s.length > 1);
-        const res = await userService.searchUsersBySkills(skillsArray);
-        const data = res.data?.data || res.data || [];
-        if (Array.isArray(data) && data.length > 0) {
-          setResults(data.map((u, i) => ({
-            id: u.userId || u.id || `usr-${i}`,
-            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Candidate',
-            match: Math.max(70, 98 - i * 5),
-            skills: u.skills?.map(s => typeof s === 'string' ? s : s.skillName) || skillsArray,
-            program: u.faculty || 'BSc (Hons) in Software Engineering',
-            faculty: u.faculty || 'Faculty of Computing',
-            gpa: u.gpa || '3.80',
-            isActivelyLooking: u.isActivelyLooking !== false
-          })));
+
+        if (pool.length > 0) {
+          const res = await aiService.smartSearchCandidates(trimmed, pool);
+          const searchResults = res.data?.results || [];
+          if (searchResults.length > 0) {
+            setResults(searchResults.map(r => ({
+              ...r.item,
+              match: r.match_score,
+              reasons: r.highlight_reasons
+            })));
+          } else {
+            setResults([]);
+          }
         } else {
           setResults([]);
         }
+      } else {
+        // Standard keyword search
+        const qLower = trimmed.toLowerCase();
+        const clientMatches = candidatePool.filter(c =>
+          c.name.toLowerCase().includes(qLower) ||
+          c.program.toLowerCase().includes(qLower) ||
+          c.faculty.toLowerCase().includes(qLower) ||
+          c.skills.some(s => s.toLowerCase().includes(qLower))
+        );
+
+        if (clientMatches.length > 0) {
+          setResults(clientMatches);
+        } else {
+          // Try backend skills search
+          const skillsArray = trimmed.split(/[\s,]+/).filter(s => s.length > 1);
+          const res = await userService.searchUsersBySkills(skillsArray).catch(() => null);
+          const data = res?.data?.data || res?.data || [];
+          if (Array.isArray(data) && data.length > 0) {
+            setResults(data.map(mapCandidate));
+          } else {
+            setResults([]);
+          }
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error('Talent search error:', err);
       setResults([]);
     } finally {
       setLoading(false);
@@ -95,19 +138,19 @@ export default function PartnerAITalentSearch() {
 
   return (
     <div className="space-y-6">
-      {/* Light Hero Card with Smart AI Search Bar */}
-      <div className="p-8 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-purple-500/15 dark:from-emerald-950/40 dark:via-slate-900 dark:to-purple-950/40 border border-emerald-500/20">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
-            <span className="material-symbols-outlined text-[24px]">auto_awesome</span>
+      {/* Sleek Compact AI Hero Card */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-purple-500/10 dark:from-emerald-950/30 dark:via-slate-900 dark:to-purple-950/30 border border-emerald-500/20 shadow-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm shadow-emerald-500/20 shrink-0">
+            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">AI Talent Discovery & Candidate Search</h1>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">NSBM Active Candidate Skill Graph</p>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">AI Talent Discovery & Candidate Search</h1>
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">NSBM Active Candidate Skill Graph</p>
           </div>
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300 max-w-3xl mb-6 leading-relaxed">
-          Toggle the <span className="font-semibold text-emerald-600 dark:text-emerald-400">✨ Smart AI Spark</span> icon to use natural language queries. Discover candidates actively seeking internship and graduate opportunities based on verified skills, project implementations, and GPA.
+        <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl mb-4 leading-normal">
+          Toggle <span className="font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">auto_awesome</span> Intelligent Matching</span> to search candidates using natural language across verified skills, projects, and academic background.
         </p>
 
         {/* Dynamic Running Border AI Search Bar */}
@@ -149,23 +192,55 @@ export default function PartnerAITalentSearch() {
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {results.map((candidate) => (
                 <div key={candidate.id} className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border-2 border-emerald-500/40 flex flex-col items-center justify-center shrink-0">
-                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">{candidate.match}%</span>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">Match</span>
+                  <div className="flex items-start gap-4 cursor-pointer" onClick={() => navigate(`/partner/talent/${candidate.userId || candidate.id}`, { state: { candidate } })}>
+                    <div className="relative shrink-0">
+                      {candidate.profilePicUrl ? (
+                        <img
+                          src={candidate.profilePicUrl}
+                          alt={candidate.name}
+                          className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold text-base flex items-center justify-center shadow-sm">
+                          {candidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'ST'}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-base text-slate-900 dark:text-white">{candidate.name}</h4>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-bold text-base text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">{candidate.name}</h4>
                         {candidate.isActivelyLooking && (
                           <Badge variant="success" className="text-[10px]">ACTIVELY SEEKING JOBS</Badge>
                         )}
+                        {(candidate.match !== undefined && candidate.match !== null) ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-emerald-600">verified</span>
+                            {candidate.match}% Match
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-emerald-600">verified</span>
+                            {candidate.matchPercentage || (candidate.gpa ? Math.min(98, Math.round(Number(candidate.gpa) * 24)) : 90)}% Match
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{candidate.program} • GPA {candidate.gpa}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {[candidate.program, candidate.gpa ? `GPA ${candidate.gpa}` : ''].filter(Boolean).join(' • ')}
+                      </p>
                       
-                      {candidate.reasons?.length > 0 && (
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                          ✓ {candidate.reasons.join(' • ')}
+                      {candidate.reasons?.length > 0 ? (
+                        <div className="space-y-0.5 pt-0.5">
+                          {candidate.reasons.map((r, rIdx) => (
+                            <p key={rIdx} className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[15px] text-emerald-600">verified_user</span>
+                              {r}
+                            </p>
+                          ))}
+                        </div>
+                      ) : candidate.projects?.length > 0 && (
+                        <p className="text-xs text-slate-600 dark:text-slate-300 font-medium pt-0.5">
+                          <span className="font-bold text-slate-700 dark:text-slate-200">Verified Projects: </span>
+                          {candidate.projects.slice(0, 2).map((p) => p.title).join(' • ')}
                         </p>
                       )}
 
@@ -182,12 +257,12 @@ export default function PartnerAITalentSearch() {
                   <div className="flex md:flex-col gap-2 w-full md:w-auto mt-2 md:mt-0 shrink-0">
                     <Button 
                       size="sm" 
-                      className="w-full text-xs" 
-                      disabled={invitedMap[candidate.id]}
-                      onClick={() => handleInvite(candidate.id)}
-                      icon={invitedMap[candidate.id] ? 'check' : 'mail'}
+                      variant="primary"
+                      className="w-full text-xs font-semibold px-4 flex items-center justify-center gap-1.5" 
+                      onClick={() => navigate(`/partner/talent/${candidate.userId || candidate.id}`, { state: { candidate } })}
+                      icon="visibility"
                     >
-                      {invitedMap[candidate.id] ? 'Invitation Sent' : 'Invite to Apply'}
+                      See Details
                     </Button>
                   </div>
                 </div>

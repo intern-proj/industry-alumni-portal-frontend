@@ -6,6 +6,7 @@ export const userService = {
   // ═══════════════════════════════════════════════
   createProfile: (data) => api.post('/user-profiles', data),
   getProfileByUserId: (userId) => api.get(`/user-profiles/${userId}`),
+  getUserProfile: (userId) => api.get(`/user-profiles/${userId}`),
   updateProfile: (userId, data) => api.put(`/user-profiles/${userId}`, data),
   toggleAvailability: (userId, isActivelyLooking) =>
     api.patch(`/user-profiles/${userId}/availability`, null, { params: { isActivelyLooking } }),
@@ -21,6 +22,8 @@ export const userService = {
   getResumesByUserId: (userId) => api.get(`/user-profiles/${userId}/resumes`),
   setPrimaryResume: (userId, resumeId) =>
     api.patch(`/user-profiles/${userId}/resumes/${resumeId}/primary`),
+  updateResume: (userId, resumeId, data) =>
+    api.put(`/user-profiles/${userId}/resumes/${resumeId}`, data),
   deleteResume: (userId, resumeId) =>
     api.delete(`/user-profiles/${userId}/resumes/${resumeId}`),
 

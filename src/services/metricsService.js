@@ -136,4 +136,13 @@ export const metricsService = {
       timestamp: new Date().toISOString(),
     };
   },
+
+  async getRecentAuditLogs(size = 10) {
+    try {
+      const res = await api.get('/audit/logs', { params: { size, sort: 'timestamp,desc' } });
+      return res.data?.content || res.data || [];
+    } catch {
+      return [];
+    }
+  }
 };
