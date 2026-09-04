@@ -12,6 +12,85 @@ import PasswordStrengthInput from '../../components/common/PasswordStrengthInput
 import { validateEmail, validatePassword } from '../../utils/validation';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 
+const ROLE_CONFIG = {
+  SYSTEM_ADMIN: {
+    label: 'System Administrator',
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
+  },
+  FACULTY_MANAGEMENT: {
+    label: 'Faculty Management',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800',
+  },
+  FACULTY_COORDINATOR: {
+    label: 'Faculty Coordinator',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+  },
+  INTERNSHIP_COORDINATOR: {
+    label: 'Internship Coordinator',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+  },
+  EVENT_COORDINATOR: {
+    label: 'Event Coordinator',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+  },
+  ADMINISTRATIVE_STAFF: {
+    label: 'Administrative Staff',
+    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800',
+  },
+  GUEST_SPEAKER: {
+    label: 'Guest Speaker',
+    badgeClass: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800',
+  },
+  STUDENT: {
+    label: 'Student',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+  },
+  INDUSTRY_PARTNER: {
+    label: 'Industry Partner',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+  },
+};
+
+export const renderRoleBadge = (rawRole) => {
+  if (!rawRole) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+        Standard User
+      </span>
+    );
+  }
+
+  const str = String(rawRole).trim();
+  const normalized = str.toUpperCase().replace(/^ROLE_/, '');
+
+  let config = ROLE_CONFIG[normalized];
+
+  if (!config) {
+    if (normalized.includes('ADMIN')) config = ROLE_CONFIG.SYSTEM_ADMIN;
+    else if (normalized.includes('MANAGEMENT')) config = ROLE_CONFIG.FACULTY_MANAGEMENT;
+    else if (normalized.includes('INTERNSHIP')) config = ROLE_CONFIG.INTERNSHIP_COORDINATOR;
+    else if (normalized.includes('EVENT')) config = ROLE_CONFIG.EVENT_COORDINATOR;
+    else if (normalized.includes('COORDINATOR')) config = ROLE_CONFIG.FACULTY_COORDINATOR;
+    else if (normalized.includes('STAFF')) config = ROLE_CONFIG.ADMINISTRATIVE_STAFF;
+    else if (normalized.includes('STUDENT')) config = ROLE_CONFIG.STUDENT;
+    else if (normalized.includes('PARTNER') || normalized.includes('COMPANY') || normalized.includes('EMPLOYER')) config = ROLE_CONFIG.INDUSTRY_PARTNER;
+    else if (normalized.includes('SPEAKER')) config = ROLE_CONFIG.GUEST_SPEAKER;
+  }
+
+  const label = config ? config.label : normalized.replace(/_/g, ' ');
+  const badgeClass = config
+    ? config.badgeClass
+    : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeClass}`}
+    >
+      {label}
+    </span>
+  );
+};
+
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +253,7 @@ export default function UserManagement() {
         const fullName = `${row.firstName || ''} ${row.lastName || ''}`.trim();
         return (
           <div>
-            <p className="font-bold text-slate-900 dark:text-white text-sm">
+            <p className="font-semibold text-slate-900 dark:text-white text-sm">
               {username}
             </p>
             {fullName && fullName !== username && fullName !== 'SYSTEM_ADMIN' && (
@@ -188,15 +267,7 @@ export default function UserManagement() {
     {
       key: 'role',
       header: 'Assigned Role',
-      render: (row) => {
-        const role = row.userRole || row.role || 'USER';
-        let variant = 'neutral';
-        if (role.includes('SYSTEM_ADMIN')) variant = 'danger';
-        else if (role.includes('MANAGEMENT')) variant = 'warning';
-        else if (role.includes('COORDINATOR') || role.includes('STAFF')) variant = 'info';
-        else if (role === 'STUDENT') variant = 'success';
-        return <Badge variant={variant}>{role}</Badge>;
-      },
+      render: (row) => renderRoleBadge(row.userRole || row.role),
     },
     {
       key: 'status',
@@ -426,7 +497,7 @@ export default function UserManagement() {
                   <span className="material-symbols-outlined text-[16px] text-emerald-500">verified_user</span>
                   Role Privilege: System Administrator (ADMIN)
                 </div>
-                Admins have full access to platform infrastructure, user administration, and system telemetry. Faculty and Staff are onboarded via Staff Invitations.
+                Administrators have complete access to platform operations, user administration, and system governance. Faculty and coordinators are onboarded via Staff Invitations.
               </div>
 
               <div className="pt-2 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800">

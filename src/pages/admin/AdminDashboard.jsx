@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { metricsService } from '../../services/metricsService';
 import { storageService } from '../../services/storageService';
+import { userService } from '../../services/userService';
 
 export default function AdminDashboard() {
   const [servicesData, setServicesData] = useState([]);
@@ -16,6 +17,10 @@ export default function AdminDashboard() {
     avgLatencyMs: 0,
     recentErrors: 0,
   });
+  const [usersDistribution, setUsersDistribution] = useState({
+    total: 0,
+    byRole: {},
+  });
   const [systemLogs, setSystemLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
@@ -23,9 +28,10 @@ export default function AdminDashboard() {
   const loadLiveTelemetry = useCallback(async () => {
     setLoading(true);
     try {
-      const [telemetryRes, logsRes] = await Promise.allSettled([
+      const [telemetryRes, logsRes, usersRes] = await Promise.allSettled([
         metricsService.fetchSystemTelemetry(),
         storageService.getAuditLogs({ size: 10, sort: 'timestamp,desc' }),
+        userService.getAllUsers({ size: 200 }),
       ]);
 
       if (telemetryRes.status === 'fulfilled' && telemetryRes.value) {
@@ -46,6 +52,21 @@ export default function AdminDashboard() {
       if (logsRes.status === 'fulfilled') {
         const raw = logsRes.value?.data?.content || logsRes.value?.data || [];
         setSystemLogs(Array.isArray(raw) ? raw : []);
+      }
+
+      if (usersRes.status === 'fulfilled') {
+        const rawUsers = usersRes.value?.data?.data?.content || usersRes.value?.data?.content || usersRes.value?.data || [];
+        if (Array.isArray(rawUsers)) {
+          const byRole = {};
+          rawUsers.forEach((u) => {
+            const r = u.userRole || u.role || 'USER';
+            byRole[r] = (byRole[r] || 0) + 1;
+          });
+          setUsersDistribution({
+            total: rawUsers.length,
+            byRole,
+          });
+        }
       }
       setLastRefreshed(new Date());
     } finally {
@@ -80,22 +101,6 @@ export default function AdminDashboard() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               System Infrastructure & Metrics
             </h1>
-            <span
-              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                downCount === 0
-                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50'
-                  : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50'
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  downCount === 0 ? 'bg-emerald-500' : 'bg-amber-500'
-                } animate-pulse`}
-              ></span>
-              {downCount === 0
-                ? 'ALL MICROSERVICES ONLINE'
-                : `${downCount} SERVICE(S) OFFLINE`}
-            </span>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Real-time inter-service health, network roundtrip latency, and immutable audit logs.
@@ -113,23 +118,23 @@ export default function AdminDashboard() {
             loading={loading}
             onClick={loadLiveTelemetry}
           >
-            Refresh Telemetry
+            Refresh Status
           </Button>
         </div>
       </div>
 
-      {/* Real-Time Platform Telemetry Cards */}
+      {/* Real-Time Platform Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Microservice Mesh
+              Platform Services
             </p>
             <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[20px]">
               hub
             </span>
           </div>
-          <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {totalCount > 0 ? `${upCount}/${totalCount}` : 'Probing...'}
           </p>
           <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -138,7 +143,7 @@ export default function AdminDashboard() {
             </span>
             <span>
               {downCount === 0
-                ? 'All services responsive via Gateway'
+                ? 'All services operating normally'
                 : `${downCount} service(s) require attention`}
             </span>
           </div>
@@ -147,54 +152,54 @@ export default function AdminDashboard() {
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Avg Inter-Service Latency
+              Average Response Time
             </p>
             <span className="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[20px]">
               speed
             </span>
           </div>
-          <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {avgLatency > 0 ? `${avgLatency} ms` : '< 1 ms'}
           </p>
           <div className="flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400">
             <span className="material-symbols-outlined text-[14px]">
               network_ping
             </span>
-            <span>Live HTTP roundtrip response time</span>
+            <span>Live service response latency</span>
           </div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Service Mesh Health
+              System Health Rating
             </p>
             <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-[20px]">
               health_and_safety
             </span>
           </div>
-          <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
+          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
             {totalCount > 0 ? `${Math.round((upCount / totalCount) * 100)}%` : '100%'}
           </p>
           <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
             <span className="material-symbols-outlined text-[14px]">
               verified
             </span>
-            <span>Spring Cloud Gateway routing</span>
+            <span>Standard service routing active</span>
           </div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Logged System Incidents
+              System Audit Incidents
             </p>
             <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[20px]">
               shield
             </span>
           </div>
           <p
-            className={`text-3xl font-extrabold ${
+            className={`text-3xl font-bold ${
               telemetrySummary.recentErrors > 0
                 ? 'text-rose-600 dark:text-rose-400'
                 : 'text-emerald-600 dark:text-emerald-400'
@@ -208,21 +213,75 @@ export default function AdminDashboard() {
             </span>
             <span>
               {telemetrySummary.recentErrors === 0
-                ? 'Clean audit stream, 0 faults'
-                : `${telemetrySummary.recentErrors} unhandled audit fault(s)`}
+                ? 'Audit stream healthy, 0 errors'
+                : `${telemetrySummary.recentErrors} logged issue(s)`}
             </span>
           </div>
         </div>
       </div>
+
+      {/* Platform Users & Role Breakdown Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600 text-[22px]">group</span>
+                <CardTitle>Platform User Accounts by Institutional Role</CardTitle>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Live user directory dynamically synchronized from authentication services across all institutional privileges.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link to="/admin/invite-staff">
+                <Button variant="outline" size="sm" icon="person_add">
+                  Invite Staff
+                </Button>
+              </Link>
+              <Link to="/admin/users">
+                <Button size="sm" icon="manage_accounts">
+                  User Directory ({usersDistribution.total})
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { role: 'SYSTEM_ADMIN', label: 'System Admin', icon: 'shield_person', color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60' },
+              { role: 'INTERNSHIP_COORDINATOR', label: 'Internship Coord.', icon: 'work_history', color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900/60' },
+              { role: 'EVENT_COORDINATOR', label: 'Event Coord.', icon: 'event', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60' },
+              { role: 'INDUSTRY_PARTNER', label: 'Industry Partner', icon: 'business_center', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60' },
+              { role: 'STUDENT', label: 'Students / Alumni', icon: 'school', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60' },
+            ].map((item) => {
+              const count = usersDistribution.byRole[item.role] || 0;
+              return (
+                <div
+                  key={item.role}
+                  className={`p-3.5 rounded-xl border ${item.color} flex items-center justify-between transition-all hover:scale-[1.01]`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-[11px] font-semibold opacity-85 uppercase tracking-wider">{item.label}</p>
+                    <p className="text-2xl font-bold">{count}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-[24px] opacity-80">{item.icon}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Live Microservices Health Matrix */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle>Live Microservice Telemetry Mesh</CardTitle>
+              <CardTitle>System Infrastructure Services</CardTitle>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Dynamic health status and live response times queried via API Gateway routes.
+                Operational health status and live response latencies across institutional platform services.
               </p>
             </div>
             <Badge variant={downCount === 0 ? 'success' : 'warning'}>
@@ -234,13 +293,13 @@ export default function AdminDashboard() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 uppercase font-semibold">
-                <th className="py-3.5 px-4">Microservice Name</th>
-                <th className="py-3.5 px-4">Port</th>
+                <th className="py-3.5 px-4">Service Name</th>
+                <th className="py-3.5 px-4">Service Port</th>
                 <th className="py-3.5 px-4">Functional Role</th>
                 <th className="py-3.5 px-4">Health Status</th>
-                <th className="py-3.5 px-4">Actuator / Details</th>
-                <th className="py-3.5 px-4">Live Ping Latency</th>
-                <th className="py-3.5 px-4 text-right">HTTP Status</th>
+                <th className="py-3.5 px-4">Endpoint Reference</th>
+                <th className="py-3.5 px-4">Response Latency</th>
+                <th className="py-3.5 px-4 text-right">Service Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">

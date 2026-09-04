@@ -12,6 +12,8 @@ const adminNavItems = [
   { label: 'System Audit Logs', path: '/admin/audit-logs', icon: 'shield' },
   { label: 'System Banners', path: '/admin/banners', icon: 'campaign' },
   { label: 'Email Templates', path: '/admin/templates', icon: 'mail' },
+  { label: 'SMTP Server Settings', path: '/admin/smtp-config', icon: 'forward_to_inbox' },
+  { label: 'AI Models & GPU', path: '/admin/ai-models', icon: 'smart_toy' },
 ];
 
 export default function AdminLayout() {
@@ -26,9 +28,7 @@ export default function AdminLayout() {
     <>
       <div className={`mb-6 px-2 flex items-center ${isCollapsed ? 'flex-col gap-4 justify-center' : 'justify-between'}`}>
         {isCollapsed ? (
-          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold cursor-pointer mt-1" onClick={() => setIsCollapsed(false)}>
-            P
-          </div>
+          <Logo size="sm" to={null} iconOnly={true} onClick={() => setIsCollapsed(false)} />
         ) : (
           <Logo size="sm" to="/admin/dashboard" />
         )}

@@ -60,21 +60,7 @@ export default function MyCertificates() {
 
   return (
     <div className="space-y-6">
-      {/* Light Hero Banner */}
-      <div className="p-8 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-purple-500/15 dark:from-emerald-950/40 dark:via-slate-900 dark:to-purple-950/40 border border-emerald-500/20">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
-            <span className="material-symbols-outlined text-[24px]">workspace_premium</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Earned Digital Certificates</h1>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">NSBM Cryptographically Signed Credentials</p>
-          </div>
-        </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-          Access, verify, and download your tamper-proof digital certificates issued for attending university symposiums, industry webinars, and workshops.
-        </p>
-      </div>
+
 
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

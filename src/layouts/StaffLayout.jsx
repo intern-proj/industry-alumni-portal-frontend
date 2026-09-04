@@ -6,11 +6,12 @@ import Logo from '../components/ui/Logo';
 import GlobalBannerBar from '../components/common/GlobalBannerBar';
 
 const baseNavItems = [
-  { label: 'Dashboard', path: '/staff/dashboard', icon: 'dashboard', roles: null },
-  { label: 'Events & Venues', path: '/staff/events', icon: 'event', roles: ['EVENT_COORDINATOR', 'FACULTY_MANAGEMENT', 'ADMINISTRATIVE_STAFF'] },
+  { label: 'Dashboard', path: '/staff/dashboard', icon: 'dashboard', roles: ['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
+  { label: 'Events', path: '/staff/events', icon: 'event', roles: ['EVENT_COORDINATOR', 'FACULTY_MANAGEMENT', 'ADMINISTRATIVE_STAFF'] },
+  { label: 'Venues', path: '/staff/venues', icon: 'location_on', roles: ['EVENT_COORDINATOR', 'FACULTY_MANAGEMENT', 'ADMINISTRATIVE_STAFF'] },
+  { label: 'Guest Speakers', path: '/staff/speakers', icon: 'record_voice_over', roles: ['EVENT_COORDINATOR', 'FACULTY_MANAGEMENT', 'ADMINISTRATIVE_STAFF'] },
   { label: 'Partners', path: '/staff/partners', icon: 'verified_user', roles: ['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
-  { label: 'Vacancy Approvals', path: '/staff/vacancy-approvals', icon: 'task_alt', roles: ['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
-  { label: 'Reports & Analytics', path: '/staff/reports', icon: 'analytics', roles: ['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
+  { label: 'Vacancy', path: '/staff/vacancy-approvals', icon: 'task_alt', roles: ['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
   { label: 'Staff Invitations', path: '/staff/invite-staff', icon: 'person_add', roles: ['FACULTY_COORDINATOR', 'ADMINISTRATIVE_STAFF'] },
 ];
 
@@ -18,6 +19,7 @@ export default function StaffLayout() {
   const { user, logout, hasAnyRole } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const initials = user?.username?.substring(0, 2).toUpperCase() || 'SF';
 
@@ -36,11 +38,24 @@ export default function StaffLayout() {
 
   const Sidebar = ({ onClose }) => (
     <>
-      <div className="mb-6 px-2 flex items-center justify-between">
-        <Logo size="sm" to="/staff/dashboard" />
+      <div className={`mb-6 px-2 flex items-center ${isCollapsed ? 'flex-col gap-4 justify-center' : 'justify-between'}`}>
+        {isCollapsed ? (
+          <Logo size="sm" to={null} iconOnly={true} onClick={() => setIsCollapsed(false)} />
+        ) : (
+          <Logo size="sm" to={hasAnyRole('EVENT_COORDINATOR') && !hasAnyRole('FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'SYSTEM_ADMIN') ? '/staff/events' : '/staff/dashboard'} />
+        )}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hidden md:flex items-center justify-center"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <span className="material-symbols-outlined text-[20px]">
+            {isCollapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'}
+          </span>
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden">
         {visibleNav.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           return (
@@ -48,40 +63,55 @@ export default function StaffLayout() {
               key={item.path}
               to={item.path}
               onClick={onClose}
-              className={isActive ? 'sidebar-item-active' : 'sidebar-item'}
+              className={`${isActive ? 'sidebar-item-active' : 'sidebar-item'} ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? item.label : undefined}
             >
               <span className={`material-symbols-outlined text-[20px] ${isActive ? 'font-[FILL:1]' : ''}`}>
                 {item.icon}
               </span>
-              <span className="text-xs">{item.label}</span>
+              {!isCollapsed && <span className="text-xs">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
       <div className="mt-auto space-y-1.5 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Theme</span>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-3'} py-1.5`}>
+          {!isCollapsed && <span className="text-xs text-slate-500 dark:text-slate-400">Theme</span>}
           <ThemeToggle size="sm" />
         </div>
-        <Link to="/" className="sidebar-item text-xs" onClick={onClose}>
+        <Link 
+          to="/" 
+          className={`sidebar-item text-xs ${isCollapsed ? 'justify-center px-0' : ''}`} 
+          onClick={onClose}
+          title={isCollapsed ? "Public Site" : undefined}
+        >
           <span className="material-symbols-outlined text-[18px]">public</span>
-          <span>Public Site</span>
+          {!isCollapsed && <span>Public Site</span>}
         </Link>
-        <button onClick={logout} className="sidebar-item text-xs w-full text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40">
+        <button 
+          onClick={logout} 
+          className={`sidebar-item text-xs w-full text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 ${isCollapsed ? 'justify-center px-0' : ''}`}
+          title={isCollapsed ? "Sign Out" : undefined}
+        >
           <span className="material-symbols-outlined text-[18px]">logout</span>
-          <span>Sign Out</span>
+          {!isCollapsed && <span>Sign Out</span>}
         </button>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3 px-2">
-        <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs">
+      <div className={`mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
+        <div 
+          className="w-8 h-8 shrink-0 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs"
+          title={isCollapsed ? `${user?.username} (${getRoleLabel()})` : undefined}
+        >
           {initials}
         </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.username || 'Staff'}</p>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">{getRoleLabel()}</p>
-        </div>
+        {!isCollapsed && (
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.username || 'Staff'}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">{getRoleLabel()}</p>
+          </div>
+        )}
       </div>
     </>
   );
@@ -89,15 +119,15 @@ export default function StaffLayout() {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 h-screen w-sidebar-width bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden md:flex flex-col p-4 z-40 transition-colors">
+      <aside className={`fixed left-0 top-0 h-screen transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden md:flex flex-col p-4 z-40 ${isCollapsed ? 'w-20' : 'w-sidebar-width'}`}>
         <Sidebar />
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 md:ml-sidebar-width min-h-screen flex flex-col">
+      <main className={`flex-1 min-w-0 min-h-screen flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'md:ml-20' : 'md:ml-sidebar-width'}`}>
         {/* Mobile Header */}
         <header className="md:hidden glass-header flex justify-between items-center px-4 h-14 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800">
-          <Logo size="sm" to="/staff/dashboard" />
+          <Logo size="sm" to={hasAnyRole('EVENT_COORDINATOR') && !hasAnyRole('FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'SYSTEM_ADMIN') ? '/staff/events' : '/staff/dashboard'} />
           <div className="flex items-center gap-2">
             <ThemeToggle size="sm" />
             <button className="p-2 text-slate-700 dark:text-slate-200" onClick={() => setMobileOpen(!mobileOpen)}>

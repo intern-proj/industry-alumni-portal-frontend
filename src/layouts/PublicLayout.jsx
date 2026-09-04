@@ -22,6 +22,10 @@ export default function PublicLayout() {
     if (hasAnyRole('STUDENT')) return '/student/dashboard';
     if (hasAnyRole('INDUSTRY_PARTNER')) return '/partner/dashboard';
     if (hasAnyRole('SYSTEM_ADMIN')) return '/admin/users';
+    if (hasAnyRole('GUEST_SPEAKER')) return '/guest-speaker/dashboard';
+    if (hasAnyRole('EVENT_COORDINATOR') && !hasAnyRole('FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'SYSTEM_ADMIN')) {
+      return '/staff/events';
+    }
     return '/staff/dashboard';
   }
 
@@ -61,8 +65,10 @@ export default function PublicLayout() {
                   to={getDashboardPath()} 
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-sm shadow-emerald-500/25 transition-all"
                 >
-                  <span className="material-symbols-outlined text-[18px]">dashboard</span>
-                  Dashboard
+                  <span className="material-symbols-outlined text-[18px]">
+                    {hasAnyRole('GUEST_SPEAKER') ? 'person' : hasAnyRole('EVENT_COORDINATOR') ? 'event' : 'dashboard'}
+                  </span>
+                  {hasAnyRole('GUEST_SPEAKER') ? 'Profile' : hasAnyRole('EVENT_COORDINATOR') ? 'Events Portal' : 'Dashboard'}
                 </Link>
                 <button 
                   onClick={logout} 

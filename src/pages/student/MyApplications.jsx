@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { applicationService } from '../../services/applicationService';
+import { vacancyService } from '../../services/vacancyService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { DataTable } from '../../components/ui/DataTable';
@@ -11,7 +12,7 @@ export default function MyApplications() {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedApp, setSelectedApp] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -23,7 +24,31 @@ export default function MyApplications() {
       if (user?.id) {
         const res = await applicationService.getApplicationsByAlumni(user.id);
         const data = res.data?.content || res.data || [];
-        setApplications(Array.isArray(data) ? data : []);
+        const appList = Array.isArray(data) ? data : [];
+        
+        // Enrich with vacancy details
+        const enrichedApps = await Promise.all(
+          appList.map(async (app) => {
+            if (app.vacancyTitle && app.companyName) return app;
+            try {
+              const vacRes = await vacancyService.getVacancyById(app.vacancyId);
+              const vac = vacRes.data?.data || vacRes.data;
+              return {
+                ...app,
+                vacancyTitle: vac?.title || `Vacancy #${app.vacancyId}`,
+                companyName: vac?.companyName || 'Unknown Company'
+              };
+            } catch (err) {
+              return {
+                ...app,
+                vacancyTitle: `Vacancy #${app.vacancyId}`,
+                companyName: 'Unknown Company'
+              };
+            }
+          })
+        );
+        
+        setApplications(enrichedApps);
       } else {
         setApplications([]);
       }
@@ -32,6 +57,24 @@ export default function MyApplications() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async (id) => {
+    window.confirmAction({
+      title: 'Delete Application',
+      message: 'Are you sure you want to delete this application? This action cannot be undone.',
+      onConfirm: async () => {
+        setDeletingId(id);
+        try {
+          await applicationService.deleteApplication(id, user.id);
+          setApplications(prev => prev.filter(app => app.id !== id));
+        } catch (error) {
+          window.toast.error('Failed to delete application. Please try again.');
+        } finally {
+          setDeletingId(null);
+        }
+      }
+    });
   };
 
   const columns = [
@@ -47,24 +90,33 @@ export default function MyApplications() {
       header: 'Status',
       render: (row) => {
         let variant = 'info';
+        if (row.status === 'UNDER_REVIEW') variant = 'warning';
         if (row.status === 'SHORTLISTED') variant = 'info';
         if (row.status === 'INTERVIEW') variant = 'warning';
         if (row.status === 'PLACED') variant = 'success';
         if (row.status === 'REJECTED') variant = 'danger';
-        return <Badge variant={variant}>{row.status || 'APPLIED'}</Badge>;
+        return <Badge variant={variant}>{row.status === 'UNDER_REVIEW' ? 'UNDER REVIEW' : (row.status || 'APPLIED')}</Badge>;
       }
     },
     {
       key: 'actions',
       header: 'Actions',
       render: (row) => (
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setSelectedApp(row)}
-        >
-          View Details
-        </Button>
+        <div className="flex gap-2">
+          <Link to={`/student/applications/${row.id}`}>
+            <Button variant="outline" size="sm">
+              View Details
+            </Button>
+          </Link>
+          <Button 
+            variant="danger" 
+            size="sm"
+            onClick={() => handleDelete(row.id)}
+            disabled={deletingId === row.id}
+          >
+            {deletingId === row.id ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
       )
     }
   ];
@@ -96,49 +148,6 @@ export default function MyApplications() {
           />
         </CardContent>
       </Card>
-
-      {/* Details Modal */}
-      {selectedApp && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white">{selectedApp.vacancyTitle}</h3>
-                <p className="text-xs text-slate-500">{selectedApp.companyName}</p>
-              </div>
-              <button 
-                onClick={() => setSelectedApp(null)}
-                className="p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="space-y-3 py-2 text-sm">
-              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs text-slate-500">Current Status:</span>
-                <Badge variant="info">{selectedApp.status || 'APPLIED'}</Badge>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs text-slate-500">Submitted On:</span>
-                <span className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {new Date(selectedApp.appliedAt || Date.now()).toLocaleString()}
-                </span>
-              </div>
-              <div className="space-y-1 pt-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recruiter Feedback / Notes:</span>
-                <p className="text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                  {selectedApp.notes || 'Your application profile is currently under review by the hiring manager.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button onClick={() => setSelectedApp(null)}>Close</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

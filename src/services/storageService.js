@@ -23,6 +23,13 @@ export const storageService = {
   downloadFile: (id) =>
     api.get(`/storage/download/${id}`, { responseType: 'blob' }),
 
+  // Generate file URL for image src or download
+  getFileUrl: (id, inline = false) => {
+    if (!id) return null;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+    return `${baseUrl}/storage/download/${id}${inline ? '?inline=true' : ''}`;
+  },
+
   // Delete file
   deleteFile: (id) => api.delete(`/storage/${id}`),
 

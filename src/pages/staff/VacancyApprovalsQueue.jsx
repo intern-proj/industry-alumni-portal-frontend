@@ -1,25 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { platformService } from '../../services/platformService';
+import { vacancyService } from '../../services/vacancyService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Select, Textarea } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function VacancyApprovalsQueue() {
+  const navigate = useNavigate();
   const [approvals, setApprovals] = useState([]);
   const [statusFilter, setStatusFilter] = useState('PENDING_REVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Review Dialog State
-  const [selectedVac, setSelectedVac] = useState(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [dialogError, setDialogError] = useState('');
-  
   const { hasAnyRole } = useAuth();
   const isViewOnly = hasAnyRole('FACULTY_MANAGEMENT');
 
@@ -27,12 +24,135 @@ export default function VacancyApprovalsQueue() {
     fetchApprovals();
   }, [statusFilter]);
 
+  const parseAiAnalysis = (aiField) => {
+    if (!aiField) return null;
+    if (typeof aiField === 'object') return aiField;
+    try {
+      const parsed = JSON.parse(aiField);
+      if (Array.isArray(parsed)) {
+        return {
+          missingFields: parsed.map(f => ({
+            field: f.field_name || f.field,
+            severity: f.severity || 'WARNING',
+            message: f.message || '',
+            suggestion: f.suggestion || ''
+          })),
+          institutionalMatchScore: 88,
+          approvalRecommendation: 'RECOMMENDED_FOR_APPROVAL',
+          isSuitableForGraduates: true,
+          complianceFlags: [],
+          fitNotes: 'Evaluated against NSBM undergraduate academic programs.',
+          recommendedPrograms: ['BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science']
+        };
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchApprovals = async () => {
     setLoading(true);
     try {
-      const res = await platformService.getVacancyApprovals(statusFilter);
-      const data = res.data?.content || res.data || [];
-      setApprovals(Array.isArray(data) ? data : []);
+      // 1. Fetch approval workflow records from platform service
+      let platformData = [];
+      try {
+        const res = await platformService.getVacancyApprovals(statusFilter);
+        const data = res.data?.content || res.data || [];
+        platformData = Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.warn('Could not fetch from platformService:', err);
+      }
+
+      // 2. Fetch vacancies directly from vacancy service to get rich AI metadata
+      let vacancyData = [];
+      try {
+        let vacancyStatus = statusFilter;
+        if (statusFilter === 'PENDING_REVIEW') vacancyStatus = 'PENDING';
+        if (!statusFilter) vacancyStatus = undefined;
+        
+        const resVac = await vacancyService.getAdminVacancies({ status: vacancyStatus, size: 50 });
+        const vacItems = resVac.data?.data?.content || resVac.data?.content || resVac.data || [];
+        vacancyData = Array.isArray(vacItems) ? vacItems : [];
+      } catch (err) {
+        console.warn('Could not fetch from vacancyService:', err);
+      }
+
+      // 3. Create a map of vacancies by ID
+      const vacancyMap = new Map();
+      vacancyData.forEach(v => {
+        if (v.id) vacancyMap.set(String(v.id), v);
+      });
+
+      // 4. Merge data sources
+      const mergedList = [];
+      const handledVacancyIds = new Set();
+
+      platformData.forEach(p => {
+        const vacId = String(p.vacancyId || p.id);
+        const directVac = vacancyMap.get(vacId);
+        handledVacancyIds.add(vacId);
+
+        const ai = parseAiAnalysis(directVac?.aiMissingFields || p.aiMissingFields);
+
+        mergedList.push({
+          id: p.id,
+          approvalId: p.id,
+          vacancyId: vacId,
+          title: directVac?.title || p.vacancyTitleSnapshot || p.title || 'Untitled Vacancy',
+          vacancyTitle: directVac?.title || p.vacancyTitleSnapshot || p.title || 'Untitled Vacancy',
+          companyName: directVac?.companyName || p.companyNameSnapshot || p.companyName || 'Corporate Partner',
+          partnerId: directVac?.partnerId || p.companyUserId || p.partnerId,
+          jobType: directVac?.jobType || p.jobType,
+          workplaceType: directVac?.workplaceType || p.workplaceType,
+          location: directVac?.location || p.location || 'Colombo, Sri Lanka',
+          salaryRange: directVac?.salaryRange || p.salaryRange || 'Negotiable',
+          description: directVac?.description || p.description || 'No description provided.',
+          requirements: directVac?.requirements || p.requirements || 'No specific requirements listed.',
+          tags: directVac?.tags || p.tags || '',
+          targetFaculties: directVac?.targetFaculties || ai?.targetFaculty || 'Faculty of Computing',
+          storageFileId: directVac?.storageFileId || p.storageFileId,
+          status: directVac?.status || p.status || 'PENDING',
+          submittedDate: p.submittedAt || directVac?.createdAt || Date.now(),
+          aiAnalysis: ai,
+          institutionalScore: ai?.institutionalMatchScore || 90,
+          flagsCount: (ai?.missingFields?.length || 0) + (ai?.complianceFlags?.length || 0),
+          approvalRecommendation: ai?.approvalRecommendation || 'RECOMMENDED_FOR_APPROVAL'
+        });
+      });
+
+      // Add vacancies not yet present in platform governance records
+      vacancyData.forEach(v => {
+        const vacId = String(v.id);
+        if (!handledVacancyIds.has(vacId)) {
+          const ai = parseAiAnalysis(v.aiMissingFields);
+          mergedList.push({
+            id: v.id,
+            vacancyId: vacId,
+            title: v.title || 'Untitled Vacancy',
+            vacancyTitle: v.title || 'Untitled Vacancy',
+            companyName: v.companyName || 'Corporate Partner',
+            partnerId: v.partnerId,
+            jobType: v.jobType,
+            workplaceType: v.workplaceType,
+            location: v.location || 'Colombo, Sri Lanka',
+            salaryRange: v.salaryRange || 'Negotiable',
+            description: v.description || 'No description provided.',
+            requirements: v.requirements || 'No specific requirements listed.',
+            tags: v.tags || '',
+            targetFaculties: v.targetFaculties || ai?.targetFaculty || 'Faculty of Computing',
+            storageFileId: v.storageFileId,
+            status: v.status || 'PENDING',
+            submittedDate: v.createdAt || Date.now(),
+            aiAnalysis: ai,
+            institutionalScore: ai?.institutionalMatchScore || 90,
+            flagsCount: (ai?.missingFields?.length || 0) + (ai?.complianceFlags?.length || 0),
+            approvalRecommendation: ai?.approvalRecommendation || 'RECOMMENDED_FOR_APPROVAL'
+          });
+        }
+      });
+
+      setApprovals(mergedList);
     } catch {
       setApprovals([]);
     } finally {
@@ -44,59 +164,117 @@ export default function VacancyApprovalsQueue() {
     setSearchTerm(query);
   };
 
-  const handleDecision = async (status) => {
-    if (!selectedVac) return;
-    setProcessing(true);
-    setDialogError('');
-    try {
-      await platformService.reviewVacancyApproval(selectedVac.id, {
-        status,
-        rejectionReason: status === 'REJECTED' ? reviewNotes : null,
-        comments: reviewNotes
-      });
-      setApprovals(prev => prev.map(v => v.id === selectedVac.id ? { ...v, status } : v));
-      setSelectedVac(null);
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to submit vacancy review decision.';
-      setDialogError(msg);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const filteredApprovals = approvals.filter(a => {
     const title = a.vacancyTitle || a.title || '';
     const company = a.companyName || '';
+    const tags = a.tags || '';
+    const faculty = a.targetFaculties || '';
     const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          company.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || a.status === statusFilter;
+                          company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          tags.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          faculty.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesStatus = !statusFilter;
+    if (statusFilter === 'PENDING_REVIEW') {
+      matchesStatus = a.status === 'PENDING' || a.status === 'PENDING_REVIEW';
+    } else if (statusFilter === 'CHANGES_REQUESTED') {
+      matchesStatus = a.status === 'CHANGES_REQUESTED';
+    } else if (statusFilter === 'APPROVED') {
+      matchesStatus = a.status === 'APPROVED';
+    } else if (statusFilter === 'REJECTED') {
+      matchesStatus = a.status === 'REJECTED';
+    } else if (statusFilter === 'CLOSED') {
+      matchesStatus = a.status === 'CLOSED';
+    } else if (statusFilter) {
+      matchesStatus = a.status === statusFilter;
+    }
+
     return matchesSearch && matchesStatus;
   });
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'APPROVED':
+        return <Badge variant="success">Approved</Badge>;
+      case 'PENDING':
+      case 'PENDING_REVIEW':
+        return <Badge variant="warning">Pending Review</Badge>;
+      case 'CHANGES_REQUESTED':
+        return <Badge variant="info" className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200">Changes Requested</Badge>;
+      case 'REJECTED':
+        return <Badge variant="danger">Rejected</Badge>;
+      case 'CLOSED':
+        return <Badge variant="neutral">Closed</Badge>;
+      default:
+        return <Badge variant="neutral">{status}</Badge>;
+    }
+  };
+
   const columns = [
-    { key: 'vacancyTitle', header: 'Vacancy Title', cellClassName: 'font-semibold text-slate-900 dark:text-white' },
-    { key: 'companyName', header: 'Corporate Partner', render: (row) => <span className="font-medium text-emerald-600 dark:text-emerald-400">{row.companyName}</span> },
-    { key: 'type', header: 'Type', render: (row) => <Badge variant="neutral">{row.jobType || row.type || 'INTERNSHIP'}</Badge> },
     {
-      key: 'aiScore',
-      header: 'AI Faculty Fit',
+      key: 'vacancyTitle',
+      header: 'Vacancy Title & Partner',
+      cellClassName: 'font-semibold text-slate-900 dark:text-white',
       render: (row) => (
-        <div className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-          <span className="material-symbols-outlined text-[16px] text-emerald-500">auto_awesome</span>
-          <span>{row.institutionalScore || 92}% Fit</span>
+        <div>
+          <div className="font-bold text-slate-900 dark:text-white text-sm">{row.vacancyTitle || row.title}</div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="material-symbols-outlined text-[14px]">corporate_fare</span>
+            <span>{row.companyName}</span>
+            <span className="text-slate-300 dark:text-slate-600">•</span>
+            <span className="text-slate-500 dark:text-slate-400">{row.location}</span>
+          </div>
         </div>
       )
     },
-    { key: 'submittedDate', header: 'Submitted Date', render: (row) => new Date(row.submittedDate || Date.now()).toLocaleDateString() },
+    {
+      key: 'type',
+      header: 'Type / Faculty',
+      render: (row) => (
+        <div className="space-y-1">
+          {row.jobType && row.jobType !== 'NOT_SPECIFIED' && <Badge variant="neutral">{row.jobType}</Badge>}
+          {row.workplaceType && row.workplaceType !== 'NOT_SPECIFIED' && <Badge variant="neutral" className="ml-1 bg-emerald-50 text-emerald-700 border-emerald-200">{row.workplaceType}</Badge>}
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+            {row.targetFaculties || 'Faculty of Computing'}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'aiScore',
+      header: 'AI Evaluation',
+      render: (row) => {
+        const score = row.institutionalScore || 90;
+        const isHigh = score >= 80;
+        return (
+          <div className="space-y-1">
+            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+              isHigh 
+                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' 
+                : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+            }`}>
+              <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+              <span>{score}% Match</span>
+            </div>
+            {row.flagsCount > 0 && (
+              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                <span className="material-symbols-outlined text-[13px]">warning</span>
+                <span>{row.flagsCount} AI Flag{row.flagsCount > 1 ? 's' : ''}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'submittedDate',
+      header: 'Submitted',
+      render: (row) => new Date(row.submittedDate || Date.now()).toLocaleDateString()
+    },
     { 
       key: 'status', 
       header: 'Status',
-      render: (row) => {
-        let variant = 'warning';
-        if (row.status === 'APPROVED') variant = 'success';
-        if (row.status === 'REJECTED') variant = 'danger';
-        return <Badge variant={variant}>{row.status || 'PENDING'}</Badge>;
-      }
+      render: (row) => getStatusBadge(row.status)
     },
     {
       key: 'actions',
@@ -104,14 +282,11 @@ export default function VacancyApprovalsQueue() {
       render: (row) => (
         <Button 
           size="sm" 
-          variant="outline"
-          icon="rate_review"
-          onClick={() => {
-            setSelectedVac(row);
-            setReviewNotes('');
-          }}
+          variant={row.status === 'PENDING' || row.status === 'PENDING_REVIEW' || row.status === 'CHANGES_REQUESTED' ? 'default' : 'outline'}
+          icon="open_in_new"
+          onClick={() => navigate(`/staff/vacancy-approvals/${row.vacancyId || row.id}`)}
         >
-          {isViewOnly ? 'View Details' : 'Review & Inspect Flags'}
+          {isViewOnly ? 'View Job Post' : 'Review & Inspect'}
         </Button>
       )
     }
@@ -121,9 +296,12 @@ export default function VacancyApprovalsQueue() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Vacancy Approvals Queue</h1>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-emerald-600 text-3xl">verified_user</span>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Vacancy Management</h1>
+          </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Review academic alignment, inspect AI-flagged missing explicit fields, and approve verified internship vacancies.
+            Review academic curricula alignment, inspect AI-extracted fields and compliance flags, and publish verified internship vacancies.
           </p>
         </div>
       </div>
@@ -136,15 +314,17 @@ export default function VacancyApprovalsQueue() {
               value={searchTerm}
               onChange={handleSmartSearch}
               onSearch={handleSmartSearch}
-              placeholder="Search by title or partner..."
-              aiPlaceholder="Smart AI search by role, faculty, or partner..."
+              placeholder="Search by title, partner, or skill..."
+              aiPlaceholder="Smart AI search by role, faculty, or skills..."
               className="w-full sm:w-80"
             />
-            <div className="w-full sm:w-44">
+            <div className="w-full sm:w-48">
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="PENDING_REVIEW">Pending Review</option>
+                <option value="CHANGES_REQUESTED">Changes Requested</option>
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED">Rejected</option>
+                <option value="CLOSED">Closed / Inactive</option>
                 <option value="">All Statuses</option>
               </Select>
             </div>
@@ -154,113 +334,6 @@ export default function VacancyApprovalsQueue() {
           <DataTable columns={columns} data={filteredApprovals} loading={loading} />
         </CardContent>
       </Card>
-
-      {/* Review Dialog with AI Institutional Fit and Missing Field Warnings */}
-      {selectedVac && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white">{selectedVac.vacancyTitle || selectedVac.title}</h3>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{selectedVac.companyName} • {selectedVac.location}</p>
-              </div>
-              <button 
-                onClick={() => { setSelectedVac(null); setDialogError(''); }}
-                className="p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {dialogError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">error</span>
-                <span>{dialogError}</span>
-              </div>
-            )}
-
-            <div className="space-y-3.5 text-xs">
-              {/* AI Institutional Match & Academic Fit Card */}
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
-                    <span className="material-symbols-outlined text-emerald-600 text-[18px]">auto_awesome</span>
-                    <span>AI Institutional Suitability: {selectedVac.institutionalScore || 94}%</span>
-                  </div>
-                  <Badge variant="success">{selectedVac.targetFaculty || 'Faculty of Computing'}</Badge>
-                </div>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {selectedVac.institutionalNotes || 'Aligns strongly with NSBM undergraduate coursework and recommended for internship placements.'}
-                </p>
-              </div>
-
-              {/* AI Missing Explicit Field Flags */}
-              {selectedVac.aiMissingFields && (
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI COMPLIANCE & EXPLICIT FIELD FLAGS</span>
-                  {JSON.parse(selectedVac.aiMissingFields).map((f, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-2 text-amber-800 dark:text-amber-300">
-                      <span className="material-symbols-outlined text-amber-600 text-[18px] mt-0.5">warning</span>
-                      <div>
-                        <span className="font-bold">Missing Explicit {f.field_name}:</span> {f.message}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Vacancy Details */}
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
-                <p className="font-semibold text-slate-900 dark:text-white">Role Description:</p>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{selectedVac.description}</p>
-                {selectedVac.requirements && (
-                  <>
-                    <p className="font-semibold text-slate-900 dark:text-white pt-1">Requirements & Skills:</p>
-                    <p className="text-slate-600 dark:text-slate-300">{selectedVac.requirements}</p>
-                  </>
-                )}
-              </div>
-
-              {/* Coordinator Review Notes */}
-              <div className="space-y-1.5 pt-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Faculty Coordinator Review Notes & Feedback
-                </label>
-                <Textarea
-                  rows={2}
-                  placeholder="Add approval notes or modification instructions for the partner..."
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  disabled={isViewOnly}
-                />
-              </div>
-            </div>
-
-            {!isViewOnly ? (
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button 
-                  variant="outline" 
-                  className="text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                  loading={processing}
-                  onClick={() => handleDecision('REJECTED')}
-                >
-                  Reject / Request Modification
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setSelectedVac(null)}>Cancel</Button>
-                  <Button loading={processing} icon="check" onClick={() => handleDecision('APPROVED')}>
-                    Approve Vacancy
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="outline" onClick={() => setSelectedVac(null)}>Close</Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

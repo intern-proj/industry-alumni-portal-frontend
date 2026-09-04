@@ -43,6 +43,13 @@ export default function Login() {
   }, [cooldown]);
 
   function handleSuccessfulRedirect(user) {
+    const pendingSessionToken = localStorage.getItem('pending_session_token');
+    if (pendingSessionToken) {
+      localStorage.removeItem('pending_session_token');
+      window.location.href = `/?session_token=${pendingSessionToken}`;
+      return;
+    }
+
     const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
     if (roles.includes('STUDENT') || user?.role === 'STUDENT') {
       navigate('/student/dashboard', { replace: true });

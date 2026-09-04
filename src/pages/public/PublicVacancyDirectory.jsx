@@ -6,16 +6,52 @@ import { Badge } from '../../components/ui/Badge';
 import { Link, useSearchParams } from 'react-router-dom';
 import { vacancyService } from '../../services/vacancyService';
 import { aiService } from '../../services/aiService';
+import { useAuth } from '../../contexts/AuthContext';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 
 export default function PublicVacancyDirectory() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   const initialAi = searchParams.get('ai') === 'true';
 
   const [searchTerm, setSearchTerm] = useState(initialQuery);
-  const [typeFilter, setTypeFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [selectedWorkplaces, setSelectedWorkplaces] = useState([]);
+  const [selectedFaculties, setSelectedFaculties] = useState([]);
+  const [minSalary, setMinSalary] = useState(0);
+
+  const toggleType = (val) => {
+    setSelectedTypes(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+  };
+
+  const toggleWorkplace = (val) => {
+    setSelectedWorkplaces(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+  };
+
+  const toggleFaculty = (val) => {
+    setSelectedFaculties(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+  };
+
+  const resetAllFilters = () => {
+    setSearchTerm('');
+    setSelectedTypes([]);
+    setSelectedWorkplaces([]);
+    setSelectedFaculties([]);
+    setMinSalary(0);
+    fetchVacancies();
+  };
+
+  const matchesSalary = (vac) => {
+    if (minSalary === 0) return true;
+    const salStr = (vac.salaryRange || vac.salary || '').toLowerCase();
+    const numbers = salStr.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ''), 10)) || [];
+    const maxVal = numbers.length > 0 ? Math.max(...numbers) : null;
+    const isNegotiable = salStr.includes('negotiable') || salStr.includes('undisclosed') || salStr === '' || salStr === 'pending';
+
+    if (maxVal === null) return isNegotiable;
+    return maxVal >= minSalary;
+  };
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,8 +63,11 @@ export default function PublicVacancyDirectory() {
     setLoading(true);
     try {
       const res = await vacancyService.getPublicVacancies();
-      const data = res.data?.content || res.data?.data || res.data || [];
-      const list = Array.isArray(data) ? data : [];
+      let list = [];
+      if (Array.isArray(res.data)) list = res.data;
+      else if (Array.isArray(res.data?.data)) list = res.data.data;
+      else if (Array.isArray(res.data?.content)) list = res.data.content;
+      else if (Array.isArray(res.data?.data?.content)) list = res.data.data.content;
       setVacancies(list);
 
       if (initialQuery && initialAi && list.length > 0) {
@@ -73,12 +112,25 @@ export default function PublicVacancyDirectory() {
     const company = v.company || v.companyName || '';
     const skills = Array.isArray(v.skills) ? v.skills.join(' ') : (v.tags || v.requirements || '');
     
-    const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = !searchTerm || v.matchScore || title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           company.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           skills.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = !typeFilter || v.type === typeFilter || v.jobType === typeFilter;
-    const matchesLoc = !locationFilter || (v.location || '').toLowerCase().includes(locationFilter.toLowerCase());
-    return matchesSearch && matchesType && matchesLoc;
+                          
+    const matchesType = selectedTypes.length === 0 || 
+      selectedTypes.some(t => 
+        (v.jobType || v.type || '').toUpperCase() === t.toUpperCase() || 
+        (v.title || '').toUpperCase().includes(t.toUpperCase())
+      );
+
+    const matchesWorkplace = selectedWorkplaces.length === 0 || 
+      selectedWorkplaces.some(w => (v.workplaceType || v.location || '').toUpperCase().includes(w.toUpperCase()));
+
+    const matchesFaculty = selectedFaculties.length === 0 || 
+      selectedFaculties.some(f => (v.targetFaculties || '').toLowerCase().includes(f.toLowerCase()));
+
+    const salaryMatch = matchesSalary(v);
+
+    return matchesSearch && matchesType && matchesWorkplace && matchesFaculty && salaryMatch;
   });
 
   return (
@@ -114,45 +166,152 @@ export default function PublicVacancyDirectory() {
         <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardContent className="p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-500 text-[20px]">tune</span>
-                  Filter Openings
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px] text-emerald-600">tune</span>
+                  Filter Vacancies
                 </h3>
+                {(selectedTypes.length > 0 || selectedWorkplaces.length > 0 || selectedFaculties.length > 0 || minSalary > 0 || searchTerm) && (
+                  <button 
+                    onClick={resetAllFilters}
+                    className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
 
-              <Select 
-                label="Employment Type"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="INTERNSHIP">Internship</option>
-                <option value="FULL_TIME">Full Time</option>
-                <option value="PART_TIME">Part Time</option>
-              </Select>
+              {/* Employment Type Checkboxes */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Employment Type
+                  </label>
+                  {selectedTypes.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                      {selectedTypes.length}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { value: 'INTERNSHIP', label: 'Internship / Trainee' },
+                    { value: 'FULL_TIME', label: 'Full-time' },
+                    { value: 'PART_TIME', label: 'Part-time' },
+                    { value: 'CONTRACT', label: 'Contract' }
+                  ].map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedTypes.includes(opt.value)}
+                        onChange={() => toggleType(opt.value)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer accent-emerald-600"
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-              <Select
-                label="Location"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-              >
-                <option value="">All Locations</option>
-                <option value="Colombo">Colombo</option>
-                <option value="Malabe">Malabe</option>
-                <option value="Remote">Remote</option>
-              </Select>
+              {/* Workplace Mode Checkboxes */}
+              <div className="space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Workplace Mode
+                  </label>
+                  {selectedWorkplaces.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                      {selectedWorkplaces.length}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { value: 'ON_SITE', label: 'On-site / Colombo' },
+                    { value: 'HYBRID', label: 'Hybrid' },
+                    { value: 'REMOTE', label: 'Remote' }
+                  ].map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedWorkplaces.includes(opt.value)}
+                        onChange={() => toggleWorkplace(opt.value)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer accent-emerald-600"
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-              {(searchTerm || typeFilter || locationFilter) && (
+              {/* Salary Range Slider */}
+              <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Minimum Salary (LKR)
+                  </label>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                    {minSalary === 0 ? 'Any' : `LKR ${minSalary.toLocaleString()}+`}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="300000" 
+                    step="10000" 
+                    value={minSalary}
+                    onChange={(e) => setMinSalary(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-600 outline-none hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 font-medium px-1">
+                    <span>Any</span>
+                    <span>300k+</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Faculty Domain Checkboxes */}
+              <div className="space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Target Faculty
+                  </label>
+                  {selectedFaculties.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                      {selectedFaculties.length}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { value: 'Computing', label: 'Faculty of Computing' },
+                    { value: 'Business', label: 'Faculty of Business' },
+                    { value: 'Science', label: 'Faculty of Science' },
+                    { value: 'Engineering', label: 'Faculty of Engineering' }
+                  ].map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedFaculties.includes(opt.value)}
+                        onChange={() => toggleFaculty(opt.value)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer accent-emerald-600"
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  className="w-full text-xs"
-                  onClick={() => { setSearchTerm(''); setTypeFilter(''); setLocationFilter(''); fetchVacancies(); }}
+                  className="w-full text-xs" 
+                  onClick={resetAllFilters}
                 >
-                  Clear Filters
+                  Clear All Filters
                 </Button>
-              )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -181,48 +340,50 @@ export default function PublicVacancyDirectory() {
               </CardContent>
             </Card>
           ) : (
-            filtered.map((v) => (
-              <Card key={v.id} className="hover:border-emerald-500/40 hover:shadow-lg transition-all border border-slate-200 dark:border-slate-800">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                    <div className="space-y-2.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-bold text-slate-900 dark:text-white">{v.title}</span>
-                        <Badge variant={v.type === 'INTERNSHIP' || v.jobType === 'INTERNSHIP' ? 'success' : 'info'}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filtered.map((v) => (
+                <Card key={v.id} className="hover:border-emerald-500/40 hover:shadow-sm transition-all border border-slate-200 dark:border-slate-800 flex flex-col">
+                  <CardContent className="p-4 flex flex-col h-full">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">{v.title}</span>
+                        <Badge variant={v.type === 'INTERNSHIP' || v.jobType === 'INTERNSHIP' ? 'success' : 'info'} className="text-[8px] px-1.5 py-0">
                           {v.type || v.jobType || 'INTERNSHIP'}
                         </Badge>
-                        {v.matchScore && (
-                          <div className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px] text-emerald-500">auto_awesome</span>
+                        {user && v.matchScore && (
+                          <div className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[11px] text-emerald-500">auto_awesome</span>
                             {v.matchScore}% Match
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex flex-col gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px]">domain</span>
+                          <span className="material-symbols-outlined text-[13px]">domain</span>
                           {v.company || v.companyName || 'Corporate Partner'}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px]">location_on</span>
-                          {v.location || 'Colombo'}
-                        </span>
-                        {(v.salary || v.salaryRange) && (
-                          <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                            <span className="material-symbols-outlined text-[16px]">payments</span>
-                            {v.salary || v.salaryRange}
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">location_on</span>
+                            {v.location || 'Colombo'}
                           </span>
-                        )}
+                          {(v.salary || v.salaryRange) && (
+                            <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                              <span className="material-symbols-outlined text-[13px]">payments</span>
+                              {v.salary || v.salaryRange}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1 line-clamp-2">
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed pt-1 line-clamp-2">
                         {v.description}
                       </p>
 
                       {v.tags && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-2">
-                          {v.tags.split(',').map((tag, idx) => (
-                            <Badge key={idx} variant="neutral" className="bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-500 border-none">
+                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                          {v.tags.split(',').slice(0, 3).map((tag, idx) => (
+                            <Badge key={idx} variant="neutral" className="bg-slate-100 dark:bg-slate-800 text-[8px] px-1.5 py-0 text-slate-500 border-none">
                               {tag.trim()}
                             </Badge>
                           ))}
@@ -230,23 +391,29 @@ export default function PublicVacancyDirectory() {
                       )}
 
                       {v.matchReasons?.length > 0 && (
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                          ✓ {v.matchReasons.join(' • ')}
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium inline-flex items-center gap-1 pt-1">
+                          <span className="material-symbols-outlined text-[11px]">verified</span>
+                          {v.matchReasons[0]}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0">
-                      <Link to="/login">
-                        <Button size="sm" icon="login">
-                          Sign In to Apply
+                    <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <Link to={`/vacancies/${v.id}`} className="flex-1">
+                        <Button size="sm" variant="outline" className="w-full text-[10px] h-6 px-2">
+                          View Post
+                        </Button>
+                      </Link>
+                      <Link to="/login" className="flex-1">
+                        <Button size="sm" icon="login" className="w-full text-[10px] h-6 px-2">
+                          Sign In
                         </Button>
                       </Link>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </div>

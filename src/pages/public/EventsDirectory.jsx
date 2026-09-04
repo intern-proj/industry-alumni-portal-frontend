@@ -15,7 +15,14 @@ export default function EventsDirectory() {
   useEffect(() => {
     setLoading(true);
     eventService.getEvents({ search: searchParams.get('q'), size: 20 })
-      .then((res) => setEvents(res.data?.content || res.data || []))
+      .then((res) => {
+        let fetched = [];
+        if (Array.isArray(res.data)) fetched = res.data;
+        else if (Array.isArray(res.data?.data)) fetched = res.data.data;
+        else if (Array.isArray(res.data?.content)) fetched = res.data.content;
+        else if (Array.isArray(res.data?.data?.content)) fetched = res.data.data.content;
+        setEvents(fetched);
+      })
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
   }, [searchParams]);
@@ -70,57 +77,71 @@ export default function EventsDirectory() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {events.map((event) => {
-            const date = new Date(event.startDateTime || Date.now());
-            return (
-              <Card key={event.id} className="hover:border-emerald-500/40 hover:shadow-md transition-all border border-slate-200 dark:border-slate-800">
-                <CardContent className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center">
-                  {/* Calendar Date Icon Box */}
-                  <div className="shrink-0 text-center w-20 py-2.5 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{date.getDate()}</p>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">{date.toLocaleDateString('en-US', { month: 'short' })}</p>
-                  </div>
-
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <Badge variant="info" className="text-[10px]">{event.eventType || 'SESSION'}</Badge>
-                      {event.status && <Badge variant="success" className="text-[10px]">{event.status}</Badge>}
-                      {event.certificateEligible && (
-                        <Badge variant="placed" className="text-[10px] flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px]">workspace_premium</span>
-                          CERTIFICATE
-                        </Badge>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-base text-slate-900 dark:text-white leading-snug">{event.title}</h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{event.description}</p>
-                    
-                    <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px] text-slate-400">schedule</span>
-                        <span>{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      {event.venueName && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[16px] text-slate-400">location_on</span>
-                          <span>{event.venueName}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {events.length === 0 ? (
+              <div className="col-span-full p-16 text-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800">
+                No events found matching your search.
+              </div>
+            ) : (
+              events.map((event) => {
+                const date = new Date(event.startDateTime || Date.now());
+                return (
+                  <Card key={event.id} className="hover:border-emerald-500/40 hover:shadow-sm transition-all border border-slate-200 dark:border-slate-800 flex flex-col">
+                    <CardContent className="p-4 flex flex-col h-full gap-3">
+                      <div className="flex items-start gap-3">
+                        {/* Calendar Date Icon Box */}
+                        <div className="shrink-0 text-center w-12 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                          <p className="text-sm font-black text-sky-600 dark:text-sky-400">{date.getDate()}</p>
+                          <p className="text-[8px] font-bold text-slate-500 uppercase">{date.toLocaleDateString('en-US', { month: 'short' })}</p>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-2">{event.title}</h3>
+                        </div>
+                      </div>
 
-                  <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto">
-                    <Link to={`/events/${event.id}`} className="flex-1 md:flex-none">
-                      <Button variant="outline" size="sm" className="w-full text-xs">Details</Button>
-                    </Link>
-                    <Link to="/login" className="flex-1 md:flex-none">
-                      <Button size="sm" className="w-full text-xs" icon="login">Participate</Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="info" className="text-[8px] px-1.5 py-0">{event.eventType || 'SESSION'}</Badge>
+                          {event.status && <Badge variant="success" className="text-[8px] px-1.5 py-0">{event.status}</Badge>}
+                          {event.certificateEligible && (
+                            <Badge variant="placed" className="text-[8px] px-1.5 py-0 flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[10px]">workspace_premium</span>
+                              CERT
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-[10px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">{event.description}</p>
+                        
+                        <div className="flex flex-col gap-1 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                            <span>{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          {event.venueName && (
+                            <div className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[12px] text-slate-400">location_on</span>
+                              <span className="truncate">{event.venueName}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <Link to={`/events/${event.id}`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full text-[10px] h-6 px-2">Details</Button>
+                        </Link>
+                        <Link to="/login" className="flex-1">
+                          <Button size="sm" className="w-full text-[10px] h-6 px-2 bg-sky-600 hover:bg-sky-700" icon="login">Join</Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>

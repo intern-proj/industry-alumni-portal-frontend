@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
-import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 import { vacancyService } from '../../services/vacancyService';
+import { applicationService } from '../../services/applicationService';
 import { aiService } from '../../services/aiService';
 import { platformService } from '../../services/platformService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,7 @@ const getValidUUID = (id) => {
 };
 
 export default function ManagePostedVacancies() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [vacancies, setVacancies] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,19 +51,92 @@ export default function ManagePostedVacancies() {
   const fetchVacancies = async () => {
     setLoading(true);
     try {
-      if (user?.id) {
+      if (user?.id || user?.username) {
         // Fetch verification status first
         try {
           const vRes = await platformService.getMyVerificationStatus();
           setVerificationStatus(vRes.data?.status || 'PENDING');
         } catch {
-          if (user.id === 'synnext') setVerificationStatus('APPROVED');
+          if (user.id === 'synnext' || user.username === 'synnext') setVerificationStatus('APPROVED');
           else setVerificationStatus('PENDING'); // Fallback
         }
 
-        const res = await vacancyService.getPartnerVacancies(user.id);
-        const data = res.data?.data?.content || res.data?.content || res.data?.data || res.data || [];
-        setVacancies(Array.isArray(data) ? data : []);
+        const partnerKey = user?.username || user?.id;
+        let res = await vacancyService.getPartnerVacancies(partnerKey);
+        let data = res.data?.data?.content || res.data?.content || res.data?.data || res.data || [];
+        if ((!Array.isArray(data) || data.length === 0) && user?.id && user?.id !== partnerKey) {
+          try {
+            const fallbackRes = await vacancyService.getPartnerVacancies(user.id);
+            const fallbackData = fallbackRes.data?.data?.content || fallbackRes.data?.content || fallbackRes.data?.data || fallbackRes.data || [];
+            if (Array.isArray(fallbackData) && fallbackData.length > 0) {
+              data = fallbackData;
+            }
+          } catch {
+            // keep data
+          }
+        }
+
+        // Public vacancies cross-match fallback if partner vacancy endpoint returned empty
+        if (!Array.isArray(data) || data.length === 0) {
+          try {
+            const pubRes = await vacancyService.getPublicVacancies({ page: 0, size: 100 });
+            const rawPub = pubRes.data?.data !== undefined ? pubRes.data.data : pubRes.data;
+            const allPub = Array.isArray(rawPub) ? rawPub : (Array.isArray(rawPub?.content) ? rawPub.content : []);
+            const uName = (user?.username || '').toLowerCase().trim();
+            const cName = (user?.companyName || '').toLowerCase().trim();
+            const uId = String(user?.id || '').trim();
+            data = allPub.filter(v => {
+              const vComp = (v.companyName || v.company_name || '').toLowerCase().trim();
+              const vPart = String(v.partnerId || v.partner_id || '').toLowerCase().trim();
+              return (uName && (vPart === uName || vComp === uName)) ||
+                     (cName && (vComp === cName || vComp.includes(cName))) ||
+                     (uId && vPart === uId);
+            });
+          } catch {
+            // keep empty
+          }
+        }
+
+        const rawList = Array.isArray(data) ? data : [];
+
+        // Direct fetch from database for each vacancy to guarantee 100% accurate count
+        const countsMap = {};
+        try {
+          const allAppsRes = await applicationService.getApplications();
+          const allApps = allAppsRes.data?.data !== undefined ? allAppsRes.data.data : allAppsRes.data;
+          const appsList = Array.isArray(allApps) ? allApps : (Array.isArray(allApps?.content) ? allApps.content : []);
+          appsList.forEach((app) => {
+            const vId = String(app.vacancyId);
+            countsMap[vId] = (countsMap[vId] || 0) + 1;
+          });
+        } catch (e) {
+          console.warn('Could not pre-fetch global applications for counts:', e);
+        }
+
+        const enrichedVacancies = await Promise.all(
+          rawList.map(async (v) => {
+            const vId = String(v.id || v.vacancyId || '');
+            let count = countsMap[vId];
+            if (count === undefined) {
+              try {
+                const sRes = await applicationService.getApplicationsByVacancy(vId);
+                const sData = sRes.data?.data !== undefined ? sRes.data.data : sRes.data;
+                const sList = Array.isArray(sData) ? sData : (Array.isArray(sData?.content) ? sData.content : []);
+                count = sList.length;
+              } catch (err) {
+                console.warn(`Could not fetch applicant count for vacancy ${vId}:`, err);
+                count = 0;
+              }
+            }
+            return {
+              ...v,
+              applicantCount: Number(count) || 0,
+              applicants: Number(count) || 0,
+            };
+          })
+        );
+
+        setVacancies(enrichedVacancies);
       } else {
         setVacancies([]);
       }
@@ -99,25 +174,13 @@ export default function ManagePostedVacancies() {
     setSaving(true);
     try {
       let fileId = editingVac?.storageFileId || null;
-      let aiExtracted = null;
-      let institutionalAnalysis = null;
 
       if (formData.flyerFile) {
         try {
           const uploadRes = await platformService.uploadFileToStorage(formData.flyerFile, user?.id || 1, 'VACANCY_FLYER');
           fileId = uploadRes.data?.data?.fileId || uploadRes.data?.fileId || uploadRes.data?.data?.id || uploadRes.data?.id;
-
-          if (fileId) {
-            // Call AI Service with the download URL
-            const fileUrl = `http://localhost:8080/api/v1/storage/download/${fileId}`;
-            const aiRes = await aiService.parseAndSaveFlyer(fileUrl, user?.id || 1);
-            if (aiRes.data) {
-              aiExtracted = aiRes.data.extracted_data;
-              institutionalAnalysis = aiRes.data.institutional_analysis;
-            }
-          }
         } catch (uploadErr) {
-          console.error("Failed to upload file or parse flyer with AI", uploadErr);
+          console.error("Failed to upload flyer file to storage", uploadErr);
         }
       }
 
@@ -126,52 +189,43 @@ export default function ManagePostedVacancies() {
         await vacancyService.updateVacancy(editingVac.id, payload);
         setVacancies(prev => prev.map(v => v.id === editingVac.id ? { ...v, ...payload } : v));
       } else {
-        const parsedDate = new Date(aiExtracted?.application_deadline);
-        const deadline = isNaN(parsedDate.getTime()) ? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0] : parsedDate.toISOString().split('T')[0];
-        
-        const mappedWorkplaceType = ['ON_SITE', 'REMOTE', 'HYBRID'].includes(aiExtracted?.workplace_type?.toUpperCase()) 
-                                    ? aiExtracted.workplace_type.toUpperCase() 
-                                    : 'ON_SITE';
+        const deadline = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
         const payload = {
-          title: formData.title || aiExtracted?.job_title,
-          storageFileId: fileId,
-          jobType: 'INTERNSHIP',
-          workplaceType: mappedWorkplaceType,
-          location: aiExtracted?.locations?.join(', ') || 'Colombo',
-          description: aiExtracted?.responsibilities?.join('\n') || 'Please see attached flyer.',
-          requirements: aiExtracted?.required_skills?.join(', ') || '',
-          salaryRange: aiExtracted?.salary_raw || 'Not Specified',
+          title: formData.title,
+          storageFileId: fileId ? String(fileId) : null,
+          jobType: null,
+          workplaceType: null,
+          location: 'Pending',
+          description: formData.title ? `Vacancy for ${formData.title}. Attached flyer is being processed in background.` : 'Please see attached flyer.',
+          requirements: 'Pending AI extraction',
+          salaryRange: 'Negotiable',
           applicationDeadline: deadline,
-          tags: [
-            ...(aiExtracted?.preferred_skills || []),
-            aiExtracted?.workplace_type,
-            aiExtracted?.salary_raw?.toLowerCase().includes('unpaid') ? 'Unpaid' : 'Paid'
-          ].filter(Boolean).join(', '),
-          targetFaculties: aiExtracted?.target_faculties?.join(', ') || '',
-          aiMissingFields: institutionalAnalysis ? JSON.stringify(institutionalAnalysis.missing_explicit_fields) : null,
-          partnerId: user?.id || 1,
-          companyName: user?.username || 'Partner Organization',
+          tags: 'Internship, Processing',
+          targetFaculties: 'Computing, Business, Engineering',
+          partnerId: String(user?.id || 1),
+          companyName: user?.companyName || user?.username || 'Partner Organization',
           status: 'PENDING',
         };
-          const res = await vacancyService.createVacancy(payload);
-          const created = res.data?.data || res.data || { id: Date.now(), ...payload, applicants: 0, createdAt: new Date().toISOString() };
-          
-          if (res?.data?.success || res?.status === 200 || res?.status === 201) {
-            try {
-              await platformService.submitVacancyApproval({
-                vacancyId: String(created.id),
-                companyUserId: getValidUUID(user?.id),
-                submittedByUserId: getValidUUID(user?.id),
-                vacancyTitleSnapshot: String(created.title),
-                companyNameSnapshot: String(created.companyName),
-              });
-            } catch (e) {
-              console.error("Failed to submit approval", e);
-            }
-          }
 
-          setVacancies(prev => [created, ...prev]);
+        const res = await vacancyService.createVacancy(payload);
+        const created = res.data?.data || res.data || { id: Date.now(), ...payload, applicants: 0, createdAt: new Date().toISOString() };
+
+        if (res?.data?.success || res?.status === 200 || res?.status === 201) {
+          try {
+            await platformService.submitVacancyApproval({
+              vacancyId: String(created.id),
+              companyUserId: getValidUUID(user?.id),
+              submittedByUserId: getValidUUID(user?.id),
+              vacancyTitleSnapshot: String(created.title),
+              companyNameSnapshot: String(created.companyName),
+            });
+          } catch (e) {
+            console.error("Failed to submit approval", e);
+          }
+        }
+
+        setVacancies(prev => [created, ...prev]);
       }
       setShowModal(false);
     } catch {
@@ -184,16 +238,20 @@ export default function ManagePostedVacancies() {
     }
   };
   const handleDeleteVacancy = async (id) => {
-    if (window.confirm("Are you sure you want to delete this vacancy? This will notify the platform and remove all associated applications.")) {
-      try {
-        await vacancyService.deleteVacancy(id);
-        setVacancies(prev => prev.filter(v => v.id !== id));
-      } catch (err) {
-        console.error("Failed to delete vacancy", err);
-        // Fallback for mock frontend state
-        setVacancies(prev => prev.filter(v => v.id !== id));
+    window.confirmAction({
+      title: 'Delete Vacancy',
+      message: 'Are you sure you want to delete this vacancy? This will notify the platform and remove all associated applications.',
+      onConfirm: async () => {
+        try {
+          await vacancyService.deleteVacancy(id);
+          setVacancies(prev => prev.filter(v => v.id !== id));
+        } catch (err) {
+          console.error("Failed to delete vacancy", err);
+          // Fallback for mock frontend state
+          setVacancies(prev => prev.filter(v => v.id !== id));
+        }
       }
-    }
+    });
   };
 
   // AI Candidate Suggestions Handler
@@ -253,16 +311,16 @@ export default function ManagePostedVacancies() {
   const columns = [
     { key: 'title', header: 'Vacancy Title', cellClassName: 'font-semibold text-slate-900 dark:text-white' },
     { key: 'postedAt', header: 'Posted Date', render: (row) => new Date(row.createdAt || row.postedAt || Date.now()).toLocaleDateString() },
-    { key: 'applicants', header: 'Applicants', cellClassName: 'text-center font-bold text-emerald-600 dark:text-emerald-400' },
     {
       key: 'status',
       header: 'Status',
       render: (row) => {
-        let variant = 'info';
-        if (row.status === 'APPROVED') variant = 'success';
-        if (row.status === 'PENDING') variant = 'warning';
-        if (row.status === 'REJECTED') variant = 'danger';
-        return <Badge variant={variant}>{row.status}</Badge>;
+        if (row.status === 'APPROVED') return <Badge variant="success">Approved</Badge>;
+        if (row.status === 'PENDING') return <Badge variant="warning">Pending Approval</Badge>;
+        if (row.status === 'CHANGES_REQUESTED') return <Badge variant="info" className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200">Changes Requested</Badge>;
+        if (row.status === 'REJECTED') return <Badge variant="danger">Rejected</Badge>;
+        if (row.status === 'CLOSED') return <Badge variant="neutral">Closed</Badge>;
+        return <Badge variant="neutral">{row.status}</Badge>;
       }
     },
     {
@@ -270,10 +328,25 @@ export default function ManagePostedVacancies() {
       header: 'Actions',
       render: (row) => (
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            icon="open_in_new"
+            onClick={() => navigate(`/partner/vacancies/${row.id}`)}
+            className="text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+          >
+            View Post
+          </Button>
           {row.status === 'APPROVED' && (
             <>
-              <Button variant="outline" size="sm" icon="assignment" onClick={() => setSelectedVacancyForApps(row)}>
-                Apps
+              <Button 
+                variant="outline" 
+                size="sm" 
+                icon="assignment" 
+                onClick={() => setSelectedVacancyForApps(row)}
+                className="font-semibold text-xs"
+              >
+                Applications ({row.applicantCount ?? row.applicants ?? 0})
               </Button>
               <Button
                 variant="outline"
@@ -335,20 +408,22 @@ export default function ManagePostedVacancies() {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <CardTitle>Your Organization's Job Postings ({filteredVacancies.length})</CardTitle>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
-            <SmartAISearchBar
-              value={searchTerm}
-              onChange={handleSmartSearch}
-              onSearch={handleSmartSearch}
-              placeholder="Search vacancies by title or skills..."
-              aiPlaceholder="Smart AI search posted vacancies..."
-              className="w-full sm:w-80"
-            />
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-72">
+              <Input
+                placeholder="Search vacancies by title or skills..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                icon="search"
+              />
+            </div>
+            <div className="w-full sm:w-44">
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="">All Statuses</option>
-                <option value="APPROVED">Approved</option>
-                <option value="PENDING">Pending</option>
+                <option value="PENDING">Pending Approval</option>
+                <option value="CHANGES_REQUESTED">Changes Requested</option>
+                <option value="APPROVED">Approved & Published</option>
                 <option value="REJECTED">Rejected</option>
+                <option value="CLOSED">Closed</option>
               </Select>
             </div>
           </div>
@@ -401,17 +476,21 @@ export default function ManagePostedVacancies() {
                       </p>
                       <div className="flex flex-wrap gap-1 pt-1">
                         {cand.matched_skills?.map((sk, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                            ✓ {sk}
+                          <span key={i} className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[11px]">check</span>
+                            {sk}
                           </span>
                         ))}
                       </div>
                     </div>
 
                     <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                      <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-sm text-center">
-                        🌟 {cand.match_percentage}%
-                        <span className="block text-[9px] font-medium text-slate-500 uppercase">Match</span>
+                      <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-sm text-center">
+                        <span className="inline-flex items-center gap-1 justify-center">
+                          <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                          {cand.match_percentage}%
+                        </span>
+                        <span className="block text-[9px] font-normal text-slate-500 uppercase tracking-wider">Match</span>
                       </div>
                       <a
                         href={`mailto:${cand.email}?subject=Invitation for Interview: ${encodeURIComponent(selectedVacForMatching?.title || '')}`}

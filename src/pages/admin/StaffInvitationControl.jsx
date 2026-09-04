@@ -7,6 +7,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { authService } from '../../services/authService';
 import { validateEmail } from '../../utils/validation';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
+import { renderRoleBadge } from './UserManagement';
 
 const storedInvitesKey = 'portal_staff_invitations_cache';
 
@@ -48,7 +49,7 @@ export default function StaffInvitationControl() {
 
     try {
       await authService.inviteStaff(email.trim(), role);
-      setSuccessMsg(`Secure invitation token dispatched successfully to ${email.trim()}`);
+      setSuccessMsg(`Official staff invitation sent to ${email.trim()}`);
       const updated = [
         {
           id: Date.now(),
@@ -112,12 +113,7 @@ export default function StaffInvitationControl() {
     { 
       key: 'role', 
       header: 'Assigned Role',
-      render: (row) => {
-        let variant = 'info';
-        if (row.role.includes('MANAGEMENT')) variant = 'warning';
-        if (row.role.includes('SYSTEM_ADMIN')) variant = 'danger';
-        return <Badge variant={variant}>{row.role.replace(/_/g, ' ')}</Badge>;
-      }
+      render: (row) => renderRoleBadge(row.role),
     },
     { key: 'date', header: 'Invitation Dispatched', render: (row) => new Date(row.date || Date.now()).toLocaleDateString() },
     {
@@ -184,55 +180,65 @@ export default function StaffInvitationControl() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invite New Staff Member</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSendInvite} className="space-y-4">
-                <Input 
-                  label="Official University Email" 
-                  placeholder="coordinator@nsbm.ac.lk" 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Select 
-                  label="Assigned Faculty / Operational Role"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="FACULTY_MANAGEMENT">Faculty Management (Dean / Head)</option>
-                  <option value="FACULTY_COORDINATOR">Faculty Coordinator</option>
-                  <option value="INTERNSHIP_COORDINATOR">Internship Coordinator</option>
-                  <option value="EVENT_COORDINATOR">Event Coordinator</option>
-                  <option value="ADMINISTRATIVE_STAFF">Administrative Staff</option>
-                  <option value="GUEST_SPEAKER">Guest Speaker</option>
-                </Select>
-                <div className="pt-2">
-                  <Button type="submit" loading={loading} className="w-full" icon="mail">
-                    Send Invitation Token
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+      {/* 1. Top Section: Invite New Staff Member Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Invite New Staff Member</CardTitle>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Dispatch secure registration tokens to faculty coordinators, department deans, administrative staff, and guest speakers.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSendInvite} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-5">
+              <Input 
+                label="Official University Email" 
+                placeholder="coordinator@nsbm.ac.lk" 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="md:col-span-4">
+              <Select 
+                label="Assigned Faculty / Operational Role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="FACULTY_MANAGEMENT">Faculty Management (Dean / Head)</option>
+                <option value="FACULTY_COORDINATOR">Faculty Coordinator</option>
+                <option value="INTERNSHIP_COORDINATOR">Internship Coordinator</option>
+                <option value="EVENT_COORDINATOR">Event Coordinator</option>
+                <option value="ADMINISTRATIVE_STAFF">Administrative Staff</option>
+                <option value="GUEST_SPEAKER">Guest Speaker</option>
+              </Select>
+            </div>
+            <div className="md:col-span-3">
+              <Button type="submit" loading={loading} className="w-full justify-center" icon="mail">
+                Send Invitation Token
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
+      {/* 2. Bottom Section: Dispatched Invitations Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
               <CardTitle>Dispatched Invitations ({invites.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={columns} data={invites} />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Monitor active invitation tokens, registration statuses, or revoke issued links.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <DataTable columns={columns} data={invites} />
+        </CardContent>
+      </Card>
 
       <ConfirmDeleteModal
         isOpen={!!revokeTarget}
