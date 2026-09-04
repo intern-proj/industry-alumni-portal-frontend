@@ -20,8 +20,14 @@ export default function Login() {
         if (res.requiresOtp) {
           alert('OTP required. Proceed to OTP flow.');
         } else {
-          // Assuming user role is fetched via getCurrentUser and stored in context
-          navigate('/student/dashboard'); // Hardcoding route for now, can be dynamic based on res.role later
+          // In a real scenario, this would use res.user.role
+          // Using a mock prompt for now since we don't have the backend connected
+          const role = window.prompt("Enter role to mock login (STUDENT or INDUSTRY_PARTNER):", "STUDENT");
+          if (role === 'INDUSTRY_PARTNER') {
+            navigate('/partner/dashboard');
+          } else {
+            navigate('/student/dashboard');
+          }
         }
       }
     } catch (err) {
