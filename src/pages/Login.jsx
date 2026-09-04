@@ -20,14 +20,8 @@ export default function Login() {
         if (res.requiresOtp) {
           alert('OTP required. Proceed to OTP flow.');
         } else {
-          const role = window.prompt("Enter role to mock login (STUDENT, INDUSTRY_PARTNER, STAFF):", "STAFF");
-          if (role === 'INDUSTRY_PARTNER') {
-            navigate('/partner/dashboard');
-          } else if (role === 'STAFF') {
-            navigate('/staff/dashboard');
-          } else {
-            navigate('/student/dashboard');
-          }
+          // Assuming user role is fetched via getCurrentUser and stored in context
+          navigate('/student/dashboard'); // Hardcoding route for now, can be dynamic based on res.role later
         }
       }
     } catch (err) {

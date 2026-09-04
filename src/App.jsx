@@ -6,19 +6,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
 import StudentLayout from './layouts/StudentLayout';
-import PartnerLayout from './layouts/PartnerLayout';
-import StaffLayout from './layouts/StaffLayout';
 
 // Pages
 import LandingPage from './pages/LandingPage';
-import Login from './pages/auth/Login';
-import AdminLogin from './pages/auth/AdminLogin';
-import PartnerRegistrationApplication from './pages/public/PartnerRegistrationApplication';
-import PartnerRegistrationCompletion from './pages/auth/PartnerRegistrationCompletion';
-import StaffRegistrationCompletion from './pages/auth/StaffRegistrationCompletion';
+import Login from './pages/Login';
 import StudentDashboard from './pages/student/StudentDashboard';
-import PartnerDashboard from './pages/partner/PartnerDashboard';
-import StaffDashboard from './pages/staff/StaffDashboard';
 
 function App() {
   return (
@@ -29,10 +21,6 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/auth/admin/login" element={<AdminLogin />} />
-            <Route path="/partner-register" element={<PartnerRegistrationApplication />} />
-            <Route path="/auth/partner/complete" element={<PartnerRegistrationCompletion />} />
-            <Route path="/auth/staff/complete" element={<StaffRegistrationCompletion />} />
           </Route>
 
           {/* Student Portal Routes */}
@@ -47,34 +35,6 @@ function App() {
             <Route index element={<Navigate to="/student/dashboard" replace />} />
             <Route path="dashboard" element={<StudentDashboard />} />
             {/* Additional student routes will go here */}
-          </Route>
-
-          {/* Partner Portal Routes */}
-          <Route
-            path="/partner"
-            element={
-              <ProtectedRoute allowedRoles={['INDUSTRY_PARTNER']}>
-                <PartnerLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/partner/dashboard" replace />} />
-            <Route path="dashboard" element={<PartnerDashboard />} />
-            {/* Additional partner routes will go here */}
-          </Route>
-
-          {/* Staff Portal Routes */}
-          <Route
-            path="/staff"
-            element={
-              <ProtectedRoute allowedRoles={['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'STAFF']}>
-                <StaffLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/staff/dashboard" replace />} />
-            <Route path="dashboard" element={<StaffDashboard />} />
-            {/* Additional staff routes will go here */}
           </Route>
         </Routes>
       </BrowserRouter>
