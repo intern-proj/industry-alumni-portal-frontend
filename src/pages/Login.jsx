@@ -20,7 +20,8 @@ export default function Login() {
         if (res.requiresOtp) {
           alert('OTP required. Proceed to OTP flow.');
         } else {
-          navigate('/'); // Redirect to dashboard based on role later
+          // Assuming user role is fetched via getCurrentUser and stored in context
+          navigate('/student/dashboard'); // Hardcoding route for now, can be dynamic based on res.role later
         }
       }
     } catch (err) {
