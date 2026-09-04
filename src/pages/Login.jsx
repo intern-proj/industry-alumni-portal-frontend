@@ -20,11 +20,11 @@ export default function Login() {
         if (res.requiresOtp) {
           alert('OTP required. Proceed to OTP flow.');
         } else {
-          // In a real scenario, this would use res.user.role
-          // Using a mock prompt for now since we don't have the backend connected
-          const role = window.prompt("Enter role to mock login (STUDENT or INDUSTRY_PARTNER):", "STUDENT");
+          const role = window.prompt("Enter role to mock login (STUDENT, INDUSTRY_PARTNER, STAFF):", "STAFF");
           if (role === 'INDUSTRY_PARTNER') {
             navigate('/partner/dashboard');
+          } else if (role === 'STAFF') {
+            navigate('/staff/dashboard');
           } else {
             navigate('/student/dashboard');
           }

@@ -7,12 +7,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicLayout from './layouts/PublicLayout';
 import StudentLayout from './layouts/StudentLayout';
 import PartnerLayout from './layouts/PartnerLayout';
+import StaffLayout from './layouts/StaffLayout';
 
 // Pages
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import StudentDashboard from './pages/student/StudentDashboard';
 import PartnerDashboard from './pages/partner/PartnerDashboard';
+import StaffDashboard from './pages/staff/StaffDashboard';
 
 function App() {
   return (
@@ -51,6 +53,20 @@ function App() {
             <Route index element={<Navigate to="/partner/dashboard" replace />} />
             <Route path="dashboard" element={<PartnerDashboard />} />
             {/* Additional partner routes will go here */}
+          </Route>
+
+          {/* Staff Portal Routes */}
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute allowedRoles={['FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'EVENT_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'STAFF']}>
+                <StaffLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/staff/dashboard" replace />} />
+            <Route path="dashboard" element={<StaffDashboard />} />
+            {/* Additional staff routes will go here */}
           </Route>
         </Routes>
       </BrowserRouter>
