@@ -71,8 +71,11 @@ export default function StudentProfile() {
             ...prev,
             ...p,
             fullName: fullNameResolved,
+            headline: p.headline !== undefined && p.headline !== null ? p.headline : (prev.headline || ''),
             personalEmail: p.email || p.personalEmail || user?.email || '',
             phoneNumber: p.phone || p.phoneNumber || '',
+            linkedInUrl: p.linkedinUrl || p.linkedInUrl || prev.linkedInUrl || '',
+            githubUrl: p.githubUrl || prev.githubUrl || '',
             profilePicUrl: p.profilePicUrl || '',
           }));
           setAvatarImgError(false);
@@ -96,7 +99,16 @@ export default function StudentProfile() {
           }
         }
         if (acadRes.status === 'fulfilled' && acadRes.value?.data?.data) {
-          setAcademicRecord((prev) => ({ ...prev, ...acadRes.value.data.data }));
+          const rec = acadRes.value.data.data;
+          setAcademicRecord({
+            ...rec,
+            facultyName: rec.faculty || rec.facultyName || '',
+            degreeProgram: rec.degreeProgram || '',
+            gpa: rec.gpa !== undefined && rec.gpa !== null ? String(rec.gpa) : '',
+            batch: rec.batch || '22.1',
+            currentYear: rec.year ? `Year ${rec.year}` : 'Year 3',
+            expectedGraduation: rec.expectedGraduation || 'November 2026',
+          });
         }
         if (skillRes.status === 'fulfilled' && Array.isArray(skillRes.value?.data?.data)) {
           const rawSkills = skillRes.value.data.data.map((s) => s.name || s.skillName || s).filter(Boolean);
@@ -180,7 +192,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: downloadUrl,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -215,7 +230,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: null,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -259,7 +277,10 @@ export default function StudentProfile() {
             lastName,
             email: currentProfile?.email || currentProfile?.personalEmail || user?.email || 'student@students.nsbm.ac.lk',
             phone: currentProfile?.phone || currentProfile?.phoneNumber || '',
+            headline: currentProfile?.headline || profile.headline || '',
             bio: data.bio || currentProfile?.bio || '',
+            linkedinUrl: currentProfile?.linkedinUrl || profile.linkedInUrl || '',
+            githubUrl: currentProfile?.githubUrl || profile.githubUrl || '',
             projects: JSON.stringify(newProjects),
             profilePicUrl: currentProfile?.profilePicUrl || null,
             isActivelyLooking: currentProfile?.isActivelyLooking ?? true,
@@ -299,7 +320,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: profile.profilePicUrl || null,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -341,13 +365,18 @@ export default function StudentProfile() {
   const handleAddSkill = async (e) => {
     e.preventDefault();
     const skillName = newSkill.trim();
-    if (!skillName || skills.some(s => s.toLowerCase() === skillName.toLowerCase())) return;
+    if (!skillName || skills.some((s) => s.toLowerCase() === skillName.toLowerCase())) return;
     setSkills((prev) => [...prev, skillName]);
     setNewSkill('');
     try {
-      await userService.addSkill(userId, { name: skillName });
-    } catch {
-      // Local state already updated
+      await userService.addSkill(userId, {
+        skillName,
+        name: skillName,
+        skillLevel: 'INTERMEDIATE',
+        category: 'TECHNICAL',
+      });
+    } catch (err) {
+      console.warn('Failed to persist skill to backend:', err);
     }
   };
 
@@ -355,8 +384,8 @@ export default function StudentProfile() {
     setSkills((prev) => prev.filter((s) => s !== skillToRemove));
     try {
       await userService.deleteSkill(userId, skillToRemove);
-    } catch {
-      // Local state already updated
+    } catch (err) {
+      console.warn('Failed to delete skill from backend:', err);
     }
   };
 
@@ -399,7 +428,10 @@ export default function StudentProfile() {
           lastName,
           email,
           phone: profile.phoneNumber || '',
+          headline: profile.headline || '',
           bio: data.bio || profile.bio || '',
+          linkedinUrl: profile.linkedInUrl || '',
+          githubUrl: profile.githubUrl || '',
           projects: JSON.stringify(newProjects),
           profilePicUrl: profile.profilePicUrl || null,
           isActivelyLooking: profile.isActivelyLooking ?? true,
@@ -731,12 +763,12 @@ export default function StudentProfile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
-                    value={profile.fullName}
+                    value={profile.fullName || ''}
                     onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
                   />
                   <Input
                     label="Professional Headline"
-                    value={profile.headline}
+                    value={profile.headline || ''}
                     onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
                     placeholder="e.g. Full-Stack Developer | Cloud Enthusiast"
                   />
@@ -744,7 +776,7 @@ export default function StudentProfile() {
                     <Textarea
                       label="Bio / Professional Summary"
                       rows={3}
-                      value={profile.bio}
+                      value={profile.bio || ''}
                       onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                       placeholder="Share your technical interests, projects, and career aspirations..."
                     />
@@ -752,24 +784,24 @@ export default function StudentProfile() {
                   <Input
                     label="Personal Email"
                     type="email"
-                    value={profile.personalEmail}
+                    value={profile.personalEmail || ''}
                     onChange={(e) => setProfile({ ...profile, personalEmail: e.target.value })}
                   />
                   <Input
                     label="Phone Number"
-                    value={profile.phoneNumber}
+                    value={profile.phoneNumber || ''}
                     onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })}
                     placeholder="+94 77 123 4567"
                   />
                   <Input
                     label="LinkedIn Profile URL"
-                    value={profile.linkedInUrl}
+                    value={profile.linkedInUrl || ''}
                     onChange={(e) => setProfile({ ...profile, linkedInUrl: e.target.value })}
                     placeholder="https://linkedin.com/in/username"
                   />
                   <Input
                     label="GitHub Profile URL"
-                    value={profile.githubUrl}
+                    value={profile.githubUrl || ''}
                     onChange={(e) => setProfile({ ...profile, githubUrl: e.target.value })}
                     placeholder="https://github.com/username"
                   />
