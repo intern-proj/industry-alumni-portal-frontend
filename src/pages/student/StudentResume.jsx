@@ -114,7 +114,7 @@ export default function StudentResume() {
         const uploadData = uploadRes.data?.data || uploadRes.data;
         const fileId = uploadData?.fileId || uploadData?.id;
         storageFileId = fileId ? String(fileId) : '';
-        fileUrl = uploadData?.downloadUrl || (fileId ? `http://localhost:8080/api/v1/storage/download/${fileId}?inline=true` : '') || uploadData?.storageUrl || '';
+        fileUrl = uploadData?.downloadUrl || (fileId ? storageService.getFileDownloadUrl(fileId, true) : '') || uploadData?.storageUrl || '';
       } catch (err) {
         console.warn('Storage upload error, using fallback stream URL', err);
         fileUrl = URL.createObjectURL(file);
@@ -510,7 +510,7 @@ export default function StudentResume() {
                         </Button>
 
                         <a
-                          href={res.fileUrl}
+                          href={storageService.getFileDownloadUrl(res.storageFileId || res.fileUrl, false)}
                           download={res.fileName}
                           target="_blank"
                           rel="noreferrer"
@@ -789,7 +789,7 @@ export default function StudentResume() {
                 <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1" />
 
                 <a
-                  href={previewResume.fileUrl}
+                  href={storageService.getFileDownloadUrl(previewResume.storageFileId || previewResume.fileUrl, false)}
                   download={previewResume.fileName}
                   target="_blank"
                   rel="noreferrer"
@@ -817,7 +817,7 @@ export default function StudentResume() {
                   className="w-full h-full transition-transform duration-150 flex items-center justify-center"
                 >
                   <iframe
-                    src={previewResume.fileUrl}
+                    src={storageService.getFileDownloadUrl(previewResume.storageFileId || previewResume.fileUrl, true)}
                     title="Resume Preview"
                     className="w-full h-full rounded-2xl bg-white shadow-lg border border-slate-200 dark:border-slate-800"
                   />

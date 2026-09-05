@@ -158,10 +158,10 @@ export default function StudentProfile() {
         fileType: 'OTHER',
       });
 
-      const fileId = uploadRes.data?.fileId;
-      const downloadUrl = fileId
-        ? `http://localhost:8080/api/v1/storage/download/${fileId}?inline=true`
-        : uploadRes.data?.storageUrl;
+      const fileId = uploadRes.data?.fileId || uploadRes.data?.id;
+      const downloadUrl = uploadRes.data?.downloadUrl
+        || (fileId ? storageService.getFileDownloadUrl(fileId, true) : null)
+        || uploadRes.data?.storageUrl;
 
       if (!downloadUrl) {
         throw new Error('Upload succeeded but no download URL returned.');
@@ -504,7 +504,7 @@ export default function StudentProfile() {
               <div className="relative group w-28 h-28 mx-auto mb-4">
                 {profile.profilePicUrl && !avatarImgError ? (
                   <img
-                    src={profile.profilePicUrl}
+                    src={storageService.getFileUrl(profile.profilePicUrl)}
                     alt={profile.fullName || 'Student Avatar'}
                     className="w-28 h-28 rounded-2xl object-cover shadow-md border-2 border-emerald-500/20 dark:border-emerald-500/30"
                     onError={() => setAvatarImgError(true)}

@@ -5,6 +5,7 @@ import ThemeToggle from '../components/ui/ThemeToggle';
 import Logo from '../components/ui/Logo';
 import GlobalBannerBar from '../components/common/GlobalBannerBar';
 import { platformService } from '../services/platformService';
+import { storageService } from '../services/storageService';
 
 const baseNavItems = [
   { label: 'Dashboard', path: '/partner/dashboard', icon: 'dashboard' },
@@ -108,7 +109,7 @@ export default function PartnerLayout() {
       <div className={`mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
         {user?.logoUrl ? (
           <img 
-            src={user.logoUrl} 
+            src={storageService.getFileUrl(user.logoUrl)} 
             alt={user?.username || 'Partner'} 
             className="w-8 h-8 flex-shrink-0 rounded-xl object-contain bg-white dark:bg-slate-800 p-0.5 border border-sky-500/20"
             onError={(e) => { e.target.style.display = 'none'; }}

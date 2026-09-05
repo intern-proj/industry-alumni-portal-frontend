@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { platformService } from '../../services/platformService';
 import { authService } from '../../services/authService';
+import { storageService } from '../../services/storageService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -389,7 +390,7 @@ export default function PartnerManagement() {
                     <h3 className="font-bold text-slate-900 dark:text-white truncate max-w-[300px] sm:max-w-md">{docToView.originalFilename}</h3>
                   </div>
                   <a 
-                    href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/storage/download/${docToView.storageFileId}`} 
+                    href={storageService.getFileDownloadUrl(docToView.storageFileId, false)} 
                     target="_blank" rel="noopener noreferrer" download={docToView.originalFilename}
                   >
                     <Button variant="outline" size="sm" icon="download">Download</Button>
@@ -397,7 +398,7 @@ export default function PartnerManagement() {
                 </div>
                 <div className="flex-1 w-full h-full p-4 relative">
                   <iframe 
-                    src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'}/storage/download/${docToView.storageFileId}?inline=true`}
+                    src={storageService.getFileDownloadUrl(docToView.storageFileId, true)}
                     className="w-full h-full rounded-xl bg-white shadow-sm border border-slate-200 dark:border-slate-800"
                     title={docToView.originalFilename}
                   />

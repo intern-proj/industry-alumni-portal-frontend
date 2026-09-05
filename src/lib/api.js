@@ -1,6 +1,29 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+export const getApiBaseUrl = () => {
+  // 1. Explicit Vite environment variables
+  if (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim()) {
+    return import.meta.env.VITE_API_BASE_URL.trim().replace(/\/+$/, '');
+  }
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
+    return import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
+  }
+  // 2. Runtime window environment if configured
+  if (typeof window !== 'undefined' && window.__ENV__?.VITE_API_BASE_URL) {
+    return window.__ENV__.VITE_API_BASE_URL.trim().replace(/\/+$/, '');
+  }
+  // 3. Fallback when developing locally in browser
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8080/api/v1';
+  }
+  // 4. Remote / cloud deployment fallback
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/api/v1`;
+  }
+  return 'http://localhost:8080/api/v1';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
