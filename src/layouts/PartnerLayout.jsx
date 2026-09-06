@@ -1,28 +1,47 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import Logo from '../components/ui/Logo';
 import GlobalBannerBar from '../components/common/GlobalBannerBar';
+import { platformService } from '../services/platformService';
+import { storageService } from '../services/storageService';
 
-const navItems = [
-  { label: 'Dashboard', path: '/student/dashboard', icon: 'dashboard' },
-  { label: 'My Events', path: '/student/events', icon: 'event' },
-  { label: 'Certificates', path: '/student/certificates', icon: 'workspace_premium' },
-  { label: 'Browse Vacancies', path: '/student/vacancies', icon: 'work' },
-  { label: 'Search Companies', path: '/student/companies', icon: 'domain' },
-  { label: 'My Applications', path: '/student/applications', icon: 'assignment' },
-  { label: 'Profile', path: '/student/profile', icon: 'person' },
-  { label: 'Resume', path: '/student/resume', icon: 'description' },
+const baseNavItems = [
+  { label: 'Dashboard', path: '/partner/dashboard', icon: 'dashboard' },
+  { label: 'Manage Vacancies', path: '/partner/vacancies', icon: 'work' },
+  { label: 'Talent Search', path: '/partner/talent-search', icon: 'person_search' },
+  { label: 'Company Profile', path: '/partner/profile', icon: 'business' },
+  { label: 'Settings', path: '/partner/settings', icon: 'settings' },
 ];
 
-export default function StudentLayout() {
+export default function PartnerLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [navItems, setNavItems] = useState(baseNavItems);
 
-  const initials = user?.username?.substring(0, 2).toUpperCase() || 'ST';
+  useEffect(() => {
+    const fetchVerificationStatus = async () => {
+      try {
+        const res = await platformService.getMyVerificationStatus();
+        if (res.data && res.data.status !== 'APPROVED') {
+          // If not verified, insert Verification tab before Settings
+          setNavItems([
+            ...baseNavItems.slice(0, 4),
+            { label: 'Verification', path: '/partner/verification', icon: 'verified_user' },
+            baseNavItems[4]
+          ]);
+        }
+      } catch (err) {
+        console.error("Failed to check verification status", err);
+      }
+    };
+    fetchVerificationStatus();
+  }, []);
+
+  const initials = user?.username?.substring(0, 2).toUpperCase() || 'PT';
 
   const Sidebar = ({ onClose }) => (
     <>
@@ -30,7 +49,7 @@ export default function StudentLayout() {
         {isCollapsed ? (
           <Logo size="sm" to={null} iconOnly={true} onClick={() => setIsCollapsed(false)} />
         ) : (
-          <Logo size="sm" to="/student/dashboard" />
+          <Logo size="sm" to="/partner/dashboard" />
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -57,7 +76,7 @@ export default function StudentLayout() {
               <span className={`material-symbols-outlined text-[20px] ${isActive ? 'font-[FILL:1]' : ''}`}>
                 {item.icon}
               </span>
-              {!isCollapsed && <span className="text-xs tracking-wide">{item.label}</span>}
+              {!isCollapsed && <span className="text-xs">{item.label}</span>}
             </Link>
           );
         })}
@@ -88,25 +107,25 @@ export default function StudentLayout() {
       </div>
 
       <div className={`mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
-        {user?.profilePicUrl ? (
+        {user?.logoUrl ? (
           <img 
-            src={user.profilePicUrl} 
-            alt={user?.username || 'Student'} 
-            className="w-8 h-8 shrink-0 rounded-xl object-cover border border-emerald-500/20"
+            src={storageService.getFileUrl(user.logoUrl)} 
+            alt={user?.username || 'Partner'} 
+            className="w-8 h-8 flex-shrink-0 rounded-xl object-contain bg-white dark:bg-slate-800 p-0.5 border border-sky-500/20"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         ) : (
           <div 
-            className="w-8 h-8 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-xs"
-            title={isCollapsed ? `${user?.username} (Student Account)` : undefined}
+            className="w-8 h-8 flex-shrink-0 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs"
+            title={isCollapsed ? `${user?.username} (Industry Partner)` : undefined}
           >
             {initials}
           </div>
         )}
         {!isCollapsed && (
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.username || 'Student'}</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">Student Account</p>
+            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.username || 'Partner'}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">Industry Partner</p>
           </div>
         )}
       </div>
@@ -124,7 +143,7 @@ export default function StudentLayout() {
       <main className={`flex-1 min-w-0 min-h-screen flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'md:ml-20' : 'md:ml-sidebar-width'}`}>
         {/* Mobile Header */}
         <header className="md:hidden glass-header flex justify-between items-center px-4 h-14 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800">
-          <Logo size="sm" to="/student/dashboard" />
+          <Logo size="sm" to="/partner/dashboard" />
           <div className="flex items-center gap-2">
             <ThemeToggle size="sm" />
             <button className="p-2 text-slate-700 dark:text-slate-200" onClick={() => setMobileOpen(!mobileOpen)}>

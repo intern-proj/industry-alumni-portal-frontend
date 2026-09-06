@@ -77,10 +77,10 @@ export default function CompanyProfileManagement() {
         fileType: 'OTHER'
       });
 
-      const fileId = uploadRes.data?.fileId;
-      const downloadUrl = fileId 
-        ? `http://localhost:8080/api/v1/storage/download/${fileId}?inline=true` 
-        : uploadRes.data?.storageUrl;
+      const fileId = uploadRes.data?.fileId || uploadRes.data?.id;
+      const downloadUrl = uploadRes.data?.downloadUrl
+        || (fileId ? storageService.getFileDownloadUrl(fileId, true) : null)
+        || uploadRes.data?.storageUrl;
 
       setFormData((prev) => ({ ...prev, logoUrl: downloadUrl }));
       setSavedMsg('Corporate logo uploaded successfully! Click "Save Profile Changes" to persist.');
@@ -176,7 +176,7 @@ export default function CompanyProfileManagement() {
                 <div className="relative group w-32 h-32 rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center mx-auto overflow-hidden shadow-inner">
                   {formData.logoUrl ? (
                     <img 
-                      src={formData.logoUrl} 
+                      src={storageService.getFileUrl(formData.logoUrl)} 
                       alt={formData.companyName || 'Corporate Logo'} 
                       className="w-full h-full object-contain p-2"
                       onError={() => setFormData((prev) => ({ ...prev, logoUrl: '' }))}

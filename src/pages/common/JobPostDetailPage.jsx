@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { vacancyService } from '../../services/vacancyService';
 import { applicationService } from '../../services/applicationService';
+import { storageService } from '../../services/storageService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -826,7 +827,7 @@ export default function JobPostDetailPage() {
                   className="relative group cursor-pointer bg-slate-950 flex items-center justify-center min-h-[480px] max-h-[680px] overflow-hidden"
                 >
                   <img 
-                    src={`http://localhost:8080/api/v1/storage/download/${vacancy.storageFileId}`} 
+                    src={storageService.getFileUrl(vacancy.storageFileId)} 
                     alt="Job Flyer" 
                     className="object-contain w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
                   />
@@ -1095,7 +1096,7 @@ export default function JobPostDetailPage() {
             className="max-w-5xl max-h-[82vh] w-full overflow-auto flex items-center justify-center rounded-3xl bg-slate-950/80 border border-white/10 p-2 shadow-2xl"
           >
             <img 
-              src={`http://localhost:8080/api/v1/storage/download/${vacancy.storageFileId}`} 
+              src={storageService.getFileUrl(vacancy.storageFileId)} 
               alt="High Resolution Job Flyer" 
               style={{ transform: `scale(${lightboxZoom})`, transformOrigin: 'center center' }}
               className="max-w-full max-h-[78vh] object-contain transition-transform duration-200 rounded-2xl"

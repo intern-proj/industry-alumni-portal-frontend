@@ -71,8 +71,11 @@ export default function StudentProfile() {
             ...prev,
             ...p,
             fullName: fullNameResolved,
+            headline: p.headline !== undefined && p.headline !== null ? p.headline : (prev.headline || ''),
             personalEmail: p.email || p.personalEmail || user?.email || '',
             phoneNumber: p.phone || p.phoneNumber || '',
+            linkedInUrl: p.linkedinUrl || p.linkedInUrl || prev.linkedInUrl || '',
+            githubUrl: p.githubUrl || prev.githubUrl || '',
             profilePicUrl: p.profilePicUrl || '',
           }));
           setAvatarImgError(false);
@@ -96,7 +99,16 @@ export default function StudentProfile() {
           }
         }
         if (acadRes.status === 'fulfilled' && acadRes.value?.data?.data) {
-          setAcademicRecord((prev) => ({ ...prev, ...acadRes.value.data.data }));
+          const rec = acadRes.value.data.data;
+          setAcademicRecord({
+            ...rec,
+            facultyName: rec.faculty || rec.facultyName || '',
+            degreeProgram: rec.degreeProgram || '',
+            gpa: rec.gpa !== undefined && rec.gpa !== null ? String(rec.gpa) : '',
+            batch: rec.batch || '22.1',
+            currentYear: rec.year ? `Year ${rec.year}` : 'Year 3',
+            expectedGraduation: rec.expectedGraduation || 'November 2026',
+          });
         }
         if (skillRes.status === 'fulfilled' && Array.isArray(skillRes.value?.data?.data)) {
           const rawSkills = skillRes.value.data.data.map((s) => s.name || s.skillName || s).filter(Boolean);
@@ -109,7 +121,7 @@ export default function StudentProfile() {
             const resRes = await userService.getResumesByUserId(userId);
             const resList = resRes.data?.data || resRes.data || [];
             const primaryResume = resList.find((r) => r.isPrimary) || resList[0];
-            if (primaryResume?.fileUrl && primaryResume.fileUrl.startsWith('http')) {
+            if (primaryResume?.fileUrl || primaryResume?.storageFileId) {
               triggerAutoEnhance(primaryResume, loadedProfile);
             }
           } catch (e) {
@@ -158,10 +170,10 @@ export default function StudentProfile() {
         fileType: 'OTHER',
       });
 
-      const fileId = uploadRes.data?.fileId;
-      const downloadUrl = fileId
-        ? `http://localhost:8080/api/v1/storage/download/${fileId}?inline=true`
-        : uploadRes.data?.storageUrl;
+      const fileId = uploadRes.data?.fileId || uploadRes.data?.id;
+      const downloadUrl = uploadRes.data?.downloadUrl
+        || (fileId ? storageService.getFileDownloadUrl(fileId, true) : null)
+        || uploadRes.data?.storageUrl;
 
       if (!downloadUrl) {
         throw new Error('Upload succeeded but no download URL returned.');
@@ -180,7 +192,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: downloadUrl,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -215,7 +230,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: null,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -233,22 +251,39 @@ export default function StudentProfile() {
 
   const triggerAutoEnhance = async (primaryResume, currentProfile) => {
     try {
-      const aiRes = await aiService.enhanceProfileFromResume(userId, primaryResume.fileUrl, skills);
+      let fileUrl = primaryResume.fileUrl;
+      if (!fileUrl || fileUrl === '#' || !fileUrl.startsWith('http')) {
+        if (primaryResume.storageFileId) {
+          fileUrl = storageService.getFileDownloadUrl(primaryResume.storageFileId, true);
+        }
+      }
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        return;
+      }
+
+      const aiRes = await aiService.enhanceProfileFromResume(userId, fileUrl, skills);
       const data = aiRes.data;
       if (data && data.status === 'success') {
         const newProjects = Array.isArray(data.projects) ? data.projects : [];
         const incomingSkills = Array.isArray(data.skills) ? data.skills : [];
         if (newProjects.length > 0 || incomingSkills.length > 0 || data.bio) {
           setProjects(newProjects);
-          if (data.bio) {
-            setProfile((prev) => ({ ...prev, bio: data.bio }));
+          const newHeadline = currentProfile?.headline || profile.headline || (data.target_roles?.[0] || '');
+          if (data.bio || newHeadline) {
+            setProfile((prev) => ({
+              ...prev,
+              bio: data.bio || prev.bio,
+              headline: newHeadline || prev.headline,
+            }));
           }
           if (incomingSkills.length > 0) {
             setSkills((prev) => Array.from(new Set([...prev, ...incomingSkills])));
           }
 
           const { firstName, lastName } = parseFullName(
-            currentProfile?.fullName || currentProfile?.firstName
+            data.candidate_name ||
+            currentProfile?.fullName ||
+            currentProfile?.firstName
               ? `${currentProfile.firstName || ''} ${currentProfile.lastName || ''}`.trim()
               : (user?.username || 'Student')
           );
@@ -259,7 +294,10 @@ export default function StudentProfile() {
             lastName,
             email: currentProfile?.email || currentProfile?.personalEmail || user?.email || 'student@students.nsbm.ac.lk',
             phone: currentProfile?.phone || currentProfile?.phoneNumber || '',
+            headline: newHeadline,
             bio: data.bio || currentProfile?.bio || '',
+            linkedinUrl: currentProfile?.linkedinUrl || profile.linkedInUrl || '',
+            githubUrl: currentProfile?.githubUrl || profile.githubUrl || '',
             projects: JSON.stringify(newProjects),
             profilePicUrl: currentProfile?.profilePicUrl || null,
             isActivelyLooking: currentProfile?.isActivelyLooking ?? true,
@@ -299,7 +337,10 @@ export default function StudentProfile() {
         lastName,
         email,
         phone: profile.phoneNumber || '',
-        bio: profile.bio || profile.headline || '',
+        headline: profile.headline || '',
+        bio: profile.bio || '',
+        linkedinUrl: profile.linkedInUrl || '',
+        githubUrl: profile.githubUrl || '',
         profilePicUrl: profile.profilePicUrl || null,
         isActivelyLooking: profile.isActivelyLooking ?? true,
         projects: typeof projects === 'string' ? projects : JSON.stringify(projects || []),
@@ -341,13 +382,18 @@ export default function StudentProfile() {
   const handleAddSkill = async (e) => {
     e.preventDefault();
     const skillName = newSkill.trim();
-    if (!skillName || skills.some(s => s.toLowerCase() === skillName.toLowerCase())) return;
+    if (!skillName || skills.some((s) => s.toLowerCase() === skillName.toLowerCase())) return;
     setSkills((prev) => [...prev, skillName]);
     setNewSkill('');
     try {
-      await userService.addSkill(userId, { name: skillName });
-    } catch {
-      // Local state already updated
+      await userService.addSkill(userId, {
+        skillName,
+        name: skillName,
+        skillLevel: 'INTERMEDIATE',
+        category: 'TECHNICAL',
+      });
+    } catch (err) {
+      console.warn('Failed to persist skill to backend:', err);
     }
   };
 
@@ -355,8 +401,8 @@ export default function StudentProfile() {
     setSkills((prev) => prev.filter((s) => s !== skillToRemove));
     try {
       await userService.deleteSkill(userId, skillToRemove);
-    } catch {
-      // Local state already updated
+    } catch (err) {
+      console.warn('Failed to delete skill from backend:', err);
     }
   };
 
@@ -375,21 +421,38 @@ export default function StudentProfile() {
         return;
       }
 
-      const aiRes = await aiService.enhanceProfileFromResume(userId, primaryResume.fileUrl, skills);
+      let fileUrl = primaryResume.fileUrl;
+      if (!fileUrl || fileUrl === '#' || !fileUrl.startsWith('http')) {
+        if (primaryResume.storageFileId) {
+          fileUrl = storageService.getFileDownloadUrl(primaryResume.storageFileId, true);
+        }
+      }
+
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        setErrorMsg('Could not find a valid download link for your primary resume.');
+        setEnhancing(false);
+        return;
+      }
+
+      const aiRes = await aiService.enhanceProfileFromResume(userId, fileUrl, skills);
       const data = aiRes.data;
 
       if (data && data.status === 'success') {
         const newProjects = Array.isArray(data.projects) ? data.projects : [];
         const incomingSkills = Array.isArray(data.skills) ? data.skills : [];
         const mergedSkills = Array.from(new Set([...skills, ...incomingSkills]));
+        const newHeadline = profile.headline || (data.target_roles?.[0] || '');
 
         setProjects(newProjects);
         setSkills(mergedSkills);
-        if (data.bio) {
-          setProfile((prev) => ({ ...prev, bio: data.bio }));
-        }
+        setProfile((prev) => ({
+          ...prev,
+          bio: data.bio || prev.bio,
+          headline: newHeadline || prev.headline,
+          fullName: data.candidate_name || prev.fullName,
+        }));
 
-        const { firstName, lastName } = parseFullName(profile.fullName || user?.username || 'Student');
+        const { firstName, lastName } = parseFullName(data.candidate_name || profile.fullName || user?.username || 'Student');
         const email = profile.personalEmail || user?.email || 'student@students.nsbm.ac.lk';
 
         // Persist immediately to user-profile backend
@@ -399,7 +462,10 @@ export default function StudentProfile() {
           lastName,
           email,
           phone: profile.phoneNumber || '',
+          headline: newHeadline,
           bio: data.bio || profile.bio || '',
+          linkedinUrl: profile.linkedInUrl || '',
+          githubUrl: profile.githubUrl || '',
           projects: JSON.stringify(newProjects),
           profilePicUrl: profile.profilePicUrl || null,
           isActivelyLooking: profile.isActivelyLooking ?? true,
@@ -504,7 +570,7 @@ export default function StudentProfile() {
               <div className="relative group w-28 h-28 mx-auto mb-4">
                 {profile.profilePicUrl && !avatarImgError ? (
                   <img
-                    src={profile.profilePicUrl}
+                    src={storageService.getFileUrl(profile.profilePicUrl)}
                     alt={profile.fullName || 'Student Avatar'}
                     className="w-28 h-28 rounded-2xl object-cover shadow-md border-2 border-emerald-500/20 dark:border-emerald-500/30"
                     onError={() => setAvatarImgError(true)}
@@ -731,12 +797,12 @@ export default function StudentProfile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
-                    value={profile.fullName}
+                    value={profile.fullName || ''}
                     onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
                   />
                   <Input
                     label="Professional Headline"
-                    value={profile.headline}
+                    value={profile.headline || ''}
                     onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
                     placeholder="e.g. Full-Stack Developer | Cloud Enthusiast"
                   />
@@ -744,7 +810,7 @@ export default function StudentProfile() {
                     <Textarea
                       label="Bio / Professional Summary"
                       rows={3}
-                      value={profile.bio}
+                      value={profile.bio || ''}
                       onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                       placeholder="Share your technical interests, projects, and career aspirations..."
                     />
@@ -752,24 +818,24 @@ export default function StudentProfile() {
                   <Input
                     label="Personal Email"
                     type="email"
-                    value={profile.personalEmail}
+                    value={profile.personalEmail || ''}
                     onChange={(e) => setProfile({ ...profile, personalEmail: e.target.value })}
                   />
                   <Input
                     label="Phone Number"
-                    value={profile.phoneNumber}
+                    value={profile.phoneNumber || ''}
                     onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })}
                     placeholder="+94 77 123 4567"
                   />
                   <Input
                     label="LinkedIn Profile URL"
-                    value={profile.linkedInUrl}
+                    value={profile.linkedInUrl || ''}
                     onChange={(e) => setProfile({ ...profile, linkedInUrl: e.target.value })}
                     placeholder="https://linkedin.com/in/username"
                   />
                   <Input
                     label="GitHub Profile URL"
-                    value={profile.githubUrl}
+                    value={profile.githubUrl || ''}
                     onChange={(e) => setProfile({ ...profile, githubUrl: e.target.value })}
                     placeholder="https://github.com/username"
                   />

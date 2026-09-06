@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { participationService } from '../../services/participationService';
+import { certificateService } from '../../services/certificateService';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -25,18 +26,34 @@ export default function CertificateVerification() {
   const verifyCredential = async (hash) => {
     setLoading(true);
     try {
-      const res = await participationService.verifyQrCode(hash);
-      const data = res.data?.data || res.data;
-      if (data && data.valid !== false) {
+      let data = null;
+
+      // Try certificate verification first (for issued PDF certificates)
+      try {
+        const certRes = await certificateService.verifyCertificate(hash);
+        const certData = certRes.data?.data || certRes.data;
+        if (certData && (certData.valid !== false && certData.isValid !== false)) {
+          data = certData;
+        }
+      } catch {
+        // Fall back to event participation QR session check
+      }
+
+      if (!data) {
+        const res = await participationService.verifyQrCode(hash);
+        data = res.data?.data || res.data;
+      }
+
+      if (data && data.valid !== false && data.isValid !== false) {
         setVerificationResult({
           valid: true,
-          certificateId: data.certificateId || (hash.toUpperCase().startsWith('NSBM-') ? hash.toUpperCase() : `NSBM-CERT-${hash.toUpperCase()}`),
+          certificateId: data.verificationCode || data.certificateId || (hash.toUpperCase().startsWith('NSBM-') ? hash.toUpperCase() : `NSBM-CERT-${hash.toUpperCase()}`),
           recipientName: data.studentName || data.recipientName || 'Verified Undergraduate',
           studentId: data.studentId || 'ST-102948',
           eventName: data.eventName || 'NSBM Career & Technical Development Session',
-          issueDate: data.issueDate ? new Date(data.issueDate).toLocaleDateString() : new Date().toLocaleDateString(),
+          issueDate: (data.issuedAt || data.issueDate) ? new Date(data.issuedAt || data.issueDate).toLocaleDateString() : new Date().toLocaleDateString(),
           issuingAuthority: 'Industry Interaction Cell & Faculty of Computing',
-          signatureHash: data.hash || hash,
+          signatureHash: data.hash || data.verificationCode || hash,
           status: 'OFFICIALLY VERIFIED'
         });
       } else {
