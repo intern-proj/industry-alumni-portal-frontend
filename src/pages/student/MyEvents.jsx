@@ -66,19 +66,32 @@ export default function MyEvents() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {registrations.map((reg) => (
+              {registrations.map((reg) => {
+                const eventDate = reg.event?.startDateTime || reg.eventStartDateTime || reg.startDateTime;
+                return (
                 <div key={reg.id} className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <div className="space-y-1.5">
-                    <h4 className="font-bold text-base text-slate-900 dark:text-white">{reg.eventTitle || 'Session Event'}</h4>
+                    <h4 className="font-bold text-base text-slate-900 dark:text-white">
+                      {reg.eventId ? (
+                        <Link to={`/events/${reg.eventId}`} className="hover:text-emerald-600 dark:hover:text-emerald-400">
+                          {reg.eventTitle || 'Session Event'}
+                        </Link>
+                      ) : (
+                        reg.eventTitle || 'Session Event'
+                      )}
+                    </h4>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[16px] text-emerald-500">calendar_today</span> 
-                        {new Date(reg.registeredAt || Date.now()).toLocaleDateString()}
+                        {eventDate ? `Event: ${new Date(eventDate).toLocaleDateString()}` : 'Event date unavailable'}
                       </span>
                       <span className="flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[16px] text-sky-500">pin_drop</span> 
                         {reg.venueName || 'Campus Main Hall'}
                       </span>
+                      {reg.registeredAt && (
+                        <span>Registered: {new Date(reg.registeredAt).toLocaleDateString()}</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 w-full md:w-auto">
@@ -87,7 +100,8 @@ export default function MyEvents() {
                     </Badge>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
