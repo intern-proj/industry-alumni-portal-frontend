@@ -18,6 +18,9 @@ export const applicationService = {
   getApplicationsByAlumni: (alumniId, params) =>
     api.get(`/applications/alumni/${alumniId}`, { params }),
 
+  // Delete application
+  deleteApplication: (id, alumniId) => api.delete(`/applications/${id}/alumni/${alumniId}`),
+
   // Update application status
   updateStatus: (id, data) => api.put(`/applications/${id}/status`, data),
 

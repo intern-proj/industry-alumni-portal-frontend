@@ -18,4 +18,9 @@ export const notificationService = {
 
   // Delete template
   deleteTemplate: (id) => api.delete(`/templates/${id}`),
+
+  // Database-backed SMTP Server Configuration
+  getSmtpConfig: () => api.get('/templates/smtp'),
+  updateSmtpConfig: (data) => api.put('/templates/smtp', data),
+  testSmtpConnection: (data) => api.post('/templates/smtp/test', data),
 };

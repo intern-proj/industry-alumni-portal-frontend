@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
 import { vacancyService } from '../../services/vacancyService';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
+import { useAuth } from '../../contexts/AuthContext';
 
 const featureCards = [
   {
@@ -38,20 +39,62 @@ export default function LandingPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingVacancies, setLoadingVacancies] = useState(true);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const [attendanceMessage, setAttendanceMessage] = useState(null);
 
   useEffect(() => {
+    const token = searchParams.get('token');
+    const sessionToken = searchParams.get('session_token');
+
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      window.location.href = '/'; // Hard redirect
+      return;
+    }
+
+    if (sessionToken) {
+      if (!user) {
+        // Redirect to login if not logged in
+        localStorage.setItem('pending_session_token', sessionToken);
+        navigate('/login?redirect=session-checkin');
+        return;
+      } else if (user.role === 'STUDENT') {
+        // Call backend to mark attendance
+        eventService.scanAttendance({ token: sessionToken })
+          .then((res) => {
+            setAttendanceMessage({ type: 'success', text: res.data?.message || 'Attendance successfully recorded!' });
+          })
+          .catch((err) => {
+            setAttendanceMessage({ type: 'error', text: err.response?.data?.error || 'Failed to record attendance.' });
+          })
+          .finally(() => {
+            // Remove token from URL
+            navigate('/', { replace: true });
+          });
+      }
+    }
+
     eventService.getEvents({ size: 3, sort: 'startDateTime,desc' })
       .then((res) => {
-        const fetched = res.data?.content || res.data?.data || res.data || [];
-        setEvents(Array.isArray(fetched) ? fetched : []);
+        let fetched = [];
+        if (Array.isArray(res.data)) fetched = res.data;
+        else if (Array.isArray(res.data?.data)) fetched = res.data.data;
+        else if (Array.isArray(res.data?.content)) fetched = res.data.content;
+        else if (Array.isArray(res.data?.data?.content)) fetched = res.data.data.content;
+        setEvents(fetched);
       })
       .catch(() => setEvents([]))
       .finally(() => setLoadingEvents(false));
 
     vacancyService.getPublicVacancies({ size: 3 })
       .then((res) => {
-        const fetched = res.data?.content || res.data?.data || res.data || [];
-        setVacancies(Array.isArray(fetched) ? fetched : []);
+        let fetched = [];
+        if (Array.isArray(res.data)) fetched = res.data;
+        else if (Array.isArray(res.data?.data)) fetched = res.data.data;
+        else if (Array.isArray(res.data?.content)) fetched = res.data.content;
+        else if (Array.isArray(res.data?.data?.content)) fetched = res.data.data.content;
+        setVacancies(fetched);
       })
       .catch(() => setVacancies([]))
       .finally(() => setLoadingVacancies(false));
@@ -73,6 +116,12 @@ export default function LandingPage() {
   return (
     <div className="space-y-0 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950 transition-colors duration-200">
       
+      {attendanceMessage && (
+        <div className={`p-4 text-center text-sm font-bold ${attendanceMessage.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+          {attendanceMessage.text}
+        </div>
+      )}
+
       {/* Modern Hero Section */}
       <section className="relative overflow-hidden border-b border-slate-200 dark:border-slate-800 py-16 md:py-24 bg-gradient-to-b from-emerald-50/50 via-slate-50/30 to-white dark:from-slate-900/80 dark:via-slate-950/90 dark:to-slate-950">
         {/* Glow Accents */}
@@ -160,7 +209,7 @@ export default function LandingPage() {
               <Link
                 key={card.title}
                 to={card.link}
-                className={`p-8 rounded-3xl border bg-gradient-to-br ${card.gradient} bg-white dark:bg-slate-900 hover:border-emerald-500/50 hover:shadow-xl transition-all duration-300 group flex flex-col justify-between`}
+                className={`p-8 rounded-3xl border bg-gradient-to-br ${card.gradient} bg-white dark:bg-slate-900 hover:border-emerald-500/50 hover:shadow-xl transition-all duration-300 group flex flex-col justify-between h-full`}
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -176,7 +225,7 @@ export default function LandingPage() {
                     {card.title}
                   </h3>
 
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
                     {card.desc}
                   </p>
                 </div>
@@ -228,7 +277,10 @@ export default function LandingPage() {
                         {vac.jobType || 'INTERNSHIP'}
                       </span>
                       {vac.salaryRange && (
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">💰 {vac.salaryRange}</span>
+                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px] text-emerald-600">payments</span>
+                          {vac.salaryRange}
+                        </span>
                       )}
                     </div>
 

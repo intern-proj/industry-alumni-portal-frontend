@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Link } from 'react-router-dom';
-import { platformService } from '../../services/platformService';
+import { authService } from '../../services/authService';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 
 export default function CollaboratorsDirectory() {
@@ -20,9 +20,14 @@ export default function CollaboratorsDirectory() {
   const fetchApprovedPartners = async () => {
     setLoading(true);
     try {
-      const res = await platformService.getPartnerVerifications('APPROVED');
-      const data = res.data?.content || res.data || [];
-      if (Array.isArray(data)) {
+      const res = await authService.getPartnerDirectory();
+      let data = [];
+      if (Array.isArray(res.data)) data = res.data;
+      else if (Array.isArray(res.data?.data)) data = res.data.data;
+      else if (Array.isArray(res.data?.content)) data = res.data.content;
+      else if (Array.isArray(res.data?.data?.content)) data = res.data.data.content;
+      
+      if (data.length > 0) {
         setPartners(data.map(p => ({
           id: p.id,
           name: p.companyName || p.organizationName || 'Industry Partner',
@@ -53,43 +58,44 @@ export default function CollaboratorsDirectory() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-6 sm:px-8 py-10">
-      {/* Hero Header */}
-      <div className="rounded-3xl p-8 bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-purple-500/15 dark:from-emerald-950/40 dark:via-slate-900 dark:to-purple-950/40 border border-emerald-500/20">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/25">
-            <span className="material-symbols-outlined text-[24px]">domain</span>
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-xl shadow-purple-500/10">
+        <div className="relative z-10 max-w-3xl space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs font-bold text-white uppercase tracking-wider">
+            <span className="material-symbols-outlined text-sm">handshake</span>
+            NSBM Official Industry Network
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Corporate Partners & Collaborators
-            </h1>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-              NSBM Official Industry Network
-            </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Corporate Partners & Collaborators</h1>
+          <p className="text-sm sm:text-base text-white/90 leading-relaxed">
+            Explore leading enterprises, software houses, and global organizations partnered with NSBM to offer verified undergraduate internships, graduate opportunities, and curriculum advisory.
+          </p>
+
+          <div className="pt-2 max-w-2xl flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <SmartAISearchBar 
+                placeholder="Search by company name, technology, or tag..."
+                aiPlaceholder="Smart AI search by company, technology, or location..."
+                value={searchTerm}
+                onChange={(val) => setSearchTerm(val)}
+                onSearch={(val) => setSearchTerm(val)}
+                loading={loading}
+              />
+            </div>
+            <Link to="/partner/register" className="shrink-0">
+              <Button size="sm" icon="add" className="h-[42px] whitespace-nowrap bg-white text-purple-600 hover:bg-slate-50">
+                Become a Partner
+              </Button>
+            </Link>
           </div>
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-          Explore leading enterprises, software houses, and global organizations partnered with NSBM to offer verified undergraduate internships, graduate opportunities, and curriculum advisory.
-        </p>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="w-full sm:w-96">
-          <SmartAISearchBar 
-            placeholder="Search by company name, technology, or tag..."
-            aiPlaceholder="Smart AI search by company, technology, or location..."
-            value={searchTerm}
-            onChange={(val) => setSearchTerm(val)}
-            onSearch={(val) => setSearchTerm(val)}
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+      {/* Industry Filter Bar */}
+      <div className="flex justify-end items-center">
+        <div className="w-full sm:w-48">
           <Select 
             value={industryFilter} 
             onChange={(e) => setIndustryFilter(e.target.value)}
-            className="w-full sm:w-48"
           >
             <option value="ALL">All Industries</option>
             <option value="IT">IT & Software</option>
@@ -97,12 +103,6 @@ export default function CollaboratorsDirectory() {
             <option value="Media">Media & Design</option>
             <option value="Cyber">Cybersecurity</option>
           </Select>
-
-          <Link to="/partner/register">
-            <Button size="sm" icon="add" className="whitespace-nowrap">
-              Become a Partner
-            </Button>
-          </Link>
         </div>
       </div>
 
@@ -125,49 +125,49 @@ export default function CollaboratorsDirectory() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredPartners.map((partner) => (
-            <Card key={partner.id} className="hover:border-emerald-500/40 hover:shadow-md transition-all">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">{partner.name}</h3>
-                      <Badge variant="success" className="text-[10px]">
+            <Card key={partner.id} className="hover:border-purple-500/40 hover:shadow-sm transition-all flex flex-col">
+              <CardContent className="p-4 flex flex-col h-full gap-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">{partner.name}</h3>
+                      <Badge variant="success" className="text-[8px] px-1.5 py-0">
                         {partner.mouStatus}
                       </Badge>
                     </div>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{partner.industry}</p>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      {partner.location}
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold truncate pt-0.5">{partner.industry}</p>
+                    <p className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5">
+                      <span className="material-symbols-outlined text-[11px]">location_on</span>
+                      <span className="truncate">{partner.location}</span>
                     </p>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0">
+                  <span className="px-1.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] font-semibold shrink-0">
                     {partner.tier}
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="flex-1 text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
                   {partner.description}
                 </p>
 
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {partner.tags.map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px]">
+                <div className="flex flex-wrap gap-1">
+                  {partner.tags.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-1.5 py-0 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[9px]">
                       {tag}
                     </span>
                   ))}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">
-                    Verified Industry Partner
+                <div className="pt-2 mt-auto border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-500 font-medium">
+                    Verified Partner
                   </span>
                   <Link to="/vacancies">
-                    <Button size="sm" variant="ghost" className="text-xs text-emerald-600 dark:text-emerald-400">
-                      View Vacancies →
+                    <Button size="sm" variant="ghost" className="text-[10px] h-6 px-2 text-purple-600 dark:text-purple-400">
+                      Openings →
                     </Button>
                   </Link>
                 </div>

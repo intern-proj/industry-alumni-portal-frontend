@@ -40,14 +40,16 @@ export function AuthProvider({ children }) {
           ? res.data.roles
           : (res.data?.role ? [res.data.role] : []);
         const role = res.data?.role || (roles.length > 0 ? roles[0] : null);
+        const resolvedId = res.data?.username || res.data?.userId || res.data?.id;
         const userData = {
-          id: res.data?.userId || res.data?.username,
-          username: res.data?.username,
+          ...res.data,
+          id: resolvedId,
+          userId: resolvedId,
+          username: res.data?.username || resolvedId,
           role: role,
           roles: roles,
           email: res.data?.email,
           userType: res.data?.userType,
-          ...res.data,
         };
         setUser(userData);
         localStorage.setItem('auth_user', JSON.stringify(userData));
@@ -175,6 +177,14 @@ export function AuthProvider({ children }) {
     [user]
   );
 
+  const updateUser = useCallback((userData) => {
+    setUser((prev) => {
+      const updated = typeof userData === 'function' ? userData(prev) : { ...prev, ...userData };
+      localStorage.setItem('auth_user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const value = {
     token,
     user,
@@ -187,6 +197,7 @@ export function AuthProvider({ children }) {
     logout,
     hasRole,
     hasAnyRole,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

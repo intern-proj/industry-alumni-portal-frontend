@@ -31,6 +31,9 @@ export const eventService = {
   createSpeaker: (data) => api.post('/guest-speakers', data),
   updateSpeaker: (id, data) => api.put(`/guest-speakers/${id}`, data),
   deleteSpeaker: (id) => api.delete(`/guest-speakers/${id}`),
+  sendInvite: (id) => api.post(`/guest-speakers/${id}/invite`),
+  getMe: () => api.get('/guest-speakers/me'),
+  getAssignedEvents: (speakerId) => api.get(`/events/speaker/${speakerId}`),
 
   // Agendas CRUD
   getAgendas: (params) => api.get('/agendas', { params }),
@@ -38,4 +41,8 @@ export const eventService = {
   createAgenda: (data) => api.post('/agendas', data),
   updateAgenda: (id, data) => api.put(`/agendas/${id}`, data),
   deleteAgenda: (id) => api.delete(`/agendas/${id}`),
+
+  // QR and Attendance
+  getQrToken: (agendaId) => api.get(`/events/agendas/${agendaId}/qr-token`),
+  scanAttendance: (data) => api.post('/events/attendance/scan', data),
 };

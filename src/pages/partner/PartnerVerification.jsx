@@ -89,9 +89,9 @@ export default function PartnerVerification() {
     } catch (err) {
       console.error("Failed to upload document", err);
       if (err.response && err.response.data) {
-        alert("Upload failed: " + (err.response.data.message || JSON.stringify(err.response.data)));
+        window.toast.error("Upload failed: " + (err.response.data.message || JSON.stringify(err.response.data)));
       } else {
-        alert("Upload failed. Please try again.");
+        window.toast.error("Upload failed. Please try again.");
       }
     } finally {
       setUploading(false);

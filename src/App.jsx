@@ -18,6 +18,8 @@ import CollaboratorsDirectory from './pages/public/CollaboratorsDirectory';
 import PublicVacancyDirectory from './pages/public/PublicVacancyDirectory';
 import PartnerRegistrationApplication from './pages/public/PartnerRegistrationApplication';
 import CertificateVerification from './pages/public/CertificateVerification';
+import VerifySpeaker from './pages/public/VerifySpeaker';
+import JobPostDetailPage from './pages/common/JobPostDetailPage';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -28,26 +30,37 @@ import PartnerRegistrationCompletion from './pages/auth/PartnerRegistrationCompl
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
 import MyEvents from './pages/student/MyEvents';
-import EventCheckIn from './pages/student/EventCheckIn';
 import MyCertificates from './pages/student/MyCertificates';
 import VacancyPortal from './pages/student/VacancyPortal';
 import MyApplications from './pages/student/MyApplications';
 import StudentProfile from './pages/student/StudentProfile';
 import StudentResume from './pages/student/StudentResume';
-import AICareerAssistant from './pages/student/AICareerAssistant';
+import StudentCompanies from './pages/student/StudentCompanies';
+import StudentCompanyDetailPage from './pages/student/StudentCompanyDetailPage';
+import JobApplicationSubmissionPage from './pages/student/JobApplicationSubmissionPage';
+import JobApplicationDetailsPage from './pages/student/JobApplicationDetailsPage';
 
 // Partner Pages
 import PartnerDashboard from './pages/partner/PartnerDashboard';
 import ManagePostedVacancies from './pages/partner/ManagePostedVacancies';
 import ViewCandidatesApplications from './pages/partner/ViewCandidatesApplications';
+import PartnerApplicationDetailPage from './pages/partner/PartnerApplicationDetailPage';
 import CompanyProfileManagement from './pages/partner/CompanyProfileManagement';
 import PartnerVerification from './pages/partner/PartnerVerification';
 import NotificationSettings from './pages/partner/NotificationSettings';
 import PartnerAITalentSearch from './pages/partner/PartnerAITalentSearch';
+import PartnerCandidateDetailPage from './pages/partner/PartnerCandidateDetailPage';
 
 // Staff Pages
 import StaffDashboard from './pages/staff/StaffDashboard';
-import EventsVenuesManagement from './pages/staff/EventsVenuesManagement';
+import EventsManagement from './pages/staff/EventsManagement';
+import EventDetailManagement from './pages/staff/EventDetailManagement';
+import CreateEvent from './pages/staff/CreateEvent';
+import EditEvent from './pages/staff/EditEvent';
+import VenuesManagement from './pages/staff/VenuesManagement';
+import SpeakersManagement from './pages/staff/SpeakersManagement';
+import CreateGuestSpeaker from './pages/staff/CreateGuestSpeaker';
+import GuestSpeakerProfile from './pages/staff/GuestSpeakerProfile';
 import PartnerManagement from './pages/staff/PartnerManagement';
 import VacancyApprovalsQueue from './pages/staff/VacancyApprovalsQueue';
 import ReportsAnalytics from './pages/staff/ReportsAnalytics';
@@ -59,6 +72,8 @@ import UserManagement from './pages/admin/UserManagement';
 import SystemAlertsBanners from './pages/admin/SystemAlertsBanners';
 import NotificationTemplatesManager from './pages/admin/NotificationTemplatesManager';
 import StaffInvitationControl from './pages/admin/StaffInvitationControl';
+import SmtpConfigurationManager from './pages/admin/SmtpConfigurationManager';
+import AiModelConfigurationManager from './pages/admin/AiModelConfigurationManager';
 
 // Guest Speaker Pages
 import GuestSpeakerDashboard from './pages/guest/GuestSpeakerDashboard';
@@ -68,9 +83,21 @@ import NotFound from './pages/utility/NotFound';
 import Forbidden from './pages/utility/Forbidden';
 import MaintenanceMode from './pages/utility/MaintenanceMode';
 
+import GlobalUIManager from './components/ui/GlobalUIManager';
+import { useAuth } from './contexts/AuthContext';
+
+function StaffDefaultRedirect() {
+  const { hasAnyRole } = useAuth();
+  if (hasAnyRole('EVENT_COORDINATOR') && !hasAnyRole('FACULTY_MANAGEMENT', 'FACULTY_COORDINATOR', 'INTERNSHIP_COORDINATOR', 'ADMINISTRATIVE_STAFF', 'SYSTEM_ADMIN')) {
+    return <Navigate to="/staff/events" replace />;
+  }
+  return <Navigate to="/staff/dashboard" replace />;
+}
+
 function App() {
   return (
     <AuthProvider>
+      <GlobalUIManager />
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
@@ -80,9 +107,11 @@ function App() {
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/collaborators" element={<CollaboratorsDirectory />} />
             <Route path="/vacancies" element={<PublicVacancyDirectory />} />
+            <Route path="/vacancies/:id" element={<JobPostDetailPage />} />
             <Route path="/partner-register" element={<PartnerRegistrationApplication />} />
             <Route path="/partner/register" element={<PartnerRegistrationApplication />} />
             <Route path="/verify/:qrHash" element={<CertificateVerification />} />
+            <Route path="/verify-speaker" element={<VerifySpeaker />} />
           </Route>
 
           {/* Auth Routes */}
@@ -102,13 +131,16 @@ function App() {
           >
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="events" element={<MyEvents />} />
-            <Route path="check-in" element={<EventCheckIn />} />
             <Route path="certificates" element={<MyCertificates />} />
             <Route path="vacancies" element={<VacancyPortal />} />
+            <Route path="vacancies/:id" element={<JobPostDetailPage />} />
+            <Route path="companies" element={<StudentCompanies />} />
+            <Route path="companies/:id" element={<StudentCompanyDetailPage />} />
+            <Route path="vacancies/:id/apply" element={<JobApplicationSubmissionPage />} />
             <Route path="applications" element={<MyApplications />} />
+            <Route path="applications/:id" element={<JobApplicationDetailsPage />} />
             <Route path="profile" element={<StudentProfile />} />
             <Route path="resume" element={<StudentResume />} />
-            <Route path="ai-assistant" element={<AICareerAssistant />} />
           </Route>
 
           {/* Partner Portal Routes */}
@@ -122,11 +154,15 @@ function App() {
           >
             <Route path="dashboard" element={<PartnerDashboard />} />
             <Route path="vacancies" element={<ManagePostedVacancies />} />
+            <Route path="vacancies/:id" element={<JobPostDetailPage />} />
             <Route path="applications" element={<ViewCandidatesApplications />} />
+            <Route path="applications/:id" element={<PartnerApplicationDetailPage />} />
             <Route path="profile" element={<CompanyProfileManagement />} />
             <Route path="verification" element={<PartnerVerification />} />
             <Route path="settings" element={<NotificationSettings />} />
             <Route path="talent-search" element={<PartnerAITalentSearch />} />
+            <Route path="talent/:id" element={<PartnerCandidateDetailPage />} />
+            <Route path="candidates/:id" element={<PartnerCandidateDetailPage />} />
           </Route>
 
           {/* Staff & Management Portal Routes (Excludes ADMIN) */}
@@ -138,11 +174,19 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/staff/dashboard" replace />} />
+            <Route index element={<StaffDefaultRedirect />} />
             <Route path="dashboard" element={<StaffDashboard />} />
-            <Route path="events" element={<EventsVenuesManagement />} />
+            <Route path="events" element={<EventsManagement />} />
+            <Route path="events/:id" element={<EventDetailManagement />} />
+            <Route path="events/create" element={<CreateEvent />} />
+            <Route path="events/:id/edit" element={<EditEvent />} />
+            <Route path="venues" element={<VenuesManagement />} />
+            <Route path="speakers" element={<SpeakersManagement />} />
+            <Route path="speakers/create" element={<CreateGuestSpeaker />} />
+            <Route path="speakers/:id" element={<GuestSpeakerProfile />} />
             <Route path="partners" element={<PartnerManagement />} />
             <Route path="vacancy-approvals" element={<VacancyApprovalsQueue />} />
+            <Route path="vacancy-approvals/:id" element={<JobPostDetailPage />} />
             <Route path="reports" element={<ReportsAnalytics />} />
             <Route path="invite-staff" element={<StaffInvitationControl />} />
           </Route>
@@ -176,6 +220,8 @@ function App() {
             <Route path="audit-logs" element={<SystemAuditLogs />} />
             <Route path="banners" element={<SystemAlertsBanners />} />
             <Route path="templates" element={<NotificationTemplatesManager />} />
+            <Route path="smtp-config" element={<SmtpConfigurationManager />} />
+            <Route path="ai-models" element={<AiModelConfigurationManager />} />
           </Route>
 
           {/* Utility / System Routes */}
