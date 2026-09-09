@@ -59,6 +59,7 @@ export default function EventsVenuesManagement() {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
       await eventService.createVenue(newVenue);
       setSuccessMsg('Venue registered successfully.');
@@ -66,11 +67,9 @@ export default function EventsVenuesManagement() {
       setNewVenue({ name: '', location: '', capacity: 100 });
       loadData();
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch {
-      setVenues((prev) => [...prev, { id: Date.now(), ...newVenue }]);
+    } catch (error) {
+      setErrorMsg(error.response?.data?.message || 'Unable to register the venue. Please try again.');
       setShowVenueModal(false);
-      setSuccessMsg('Venue registered successfully.');
-      setTimeout(() => setSuccessMsg(''), 4000);
     } finally {
       setSubmitting(false);
     }
@@ -80,6 +79,7 @@ export default function EventsVenuesManagement() {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
       await eventService.createSpeaker(newSpeaker);
       setSuccessMsg('Guest speaker added successfully.');
@@ -87,11 +87,9 @@ export default function EventsVenuesManagement() {
       setNewSpeaker({ name: '', designation: '', organization: '', bio: '' });
       loadData();
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch {
-      setSpeakers((prev) => [...prev, { id: Date.now(), ...newSpeaker }]);
+    } catch (error) {
+      setErrorMsg(error.response?.data?.message || 'Unable to add the guest speaker. Please try again.');
       setShowSpeakerModal(false);
-      setSuccessMsg('Guest speaker added successfully.');
-      setTimeout(() => setSuccessMsg(''), 4000);
     } finally {
       setSubmitting(false);
     }
@@ -99,23 +97,35 @@ export default function EventsVenuesManagement() {
 
   const handleDeleteVenue = async (id) => {
     if (!window.confirm('Delete this venue?')) return;
+    setErrorMsg('');
+    setSuccessMsg('');
     try {
       await eventService.deleteVenue(id);
       loadData();
-    } catch {
-      setVenues((prev) => prev.filter((v) => v.id !== id));
+    } catch (error) {
+      setErrorMsg(error.response?.data?.message || 'Unable to delete the venue. Please try again.');
     }
   };
 
   const handleDeleteSpeaker = async (id) => {
     if (!window.confirm('Delete this speaker?')) return;
+    setErrorMsg('');
+    setSuccessMsg('');
     try {
       await eventService.deleteSpeaker(id);
       loadData();
-    } catch {
-      setSpeakers((prev) => prev.filter((s) => s.id !== id));
+    } catch (error) {
+      setErrorMsg(error.response?.data?.message || 'Unable to delete the guest speaker. Please try again.');
     }
   };
+
+  const filteredEvents = events.filter((event) => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const matchesSearch = !normalizedSearch || [event.title, event.eventType, event.venueName]
+      .some((value) => value?.toLowerCase().includes(normalizedSearch));
+    const matchesStatus = statusFilter === 'ALL' || (event.status || 'DRAFT') === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const eventColumns = [
     { key: 'title', header: 'Event Title', render: (row) => <span className="font-semibold text-slate-900 dark:text-white">{row.title}</span> },
@@ -241,7 +251,7 @@ export default function EventsVenuesManagement() {
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeTab === 'events' ? (
-            <DataTable columns={eventColumns} data={events} />
+            <DataTable columns={eventColumns} data={filteredEvents} />
           ) : activeTab === 'venues' ? (
             <DataTable columns={venueColumns} data={venues} />
           ) : (
