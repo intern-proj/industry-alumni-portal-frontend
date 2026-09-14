@@ -109,10 +109,13 @@ export default function StaffDashboard() {
           const data = vacAppRes.value?.data?.content || vacAppRes.value?.data || [];
           const rawApprovals = Array.isArray(data) ? data : [];
           
-          // Filter out orphaned records where vacancy doesn't exist in vacancy-service
+          // Filter out orphaned records where vacancy doesn't exist in vacancy-service,
+          // AND ensure the vacancy's actual lifecycle status in vacancy-service is genuinely PENDING!
           const validApprovals = rawApprovals.filter(p => {
             const vId = String(p.vacancyId || p.id);
-            return validVacMap.has(vId);
+            const directVac = validVacMap.get(vId);
+            if (!directVac) return false;
+            return directVac.status === 'PENDING' || directVac.status === 'PENDING_REVIEW';
           });
 
           setPendingVacanciesCount(validApprovals.length);

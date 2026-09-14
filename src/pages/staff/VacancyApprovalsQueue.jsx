@@ -95,11 +95,7 @@ export default function VacancyApprovalsQueue() {
       // 2. Fetch vacancies directly from vacancy service
       let vacancyData = [];
       try {
-        let vacancyStatus = statusFilter;
-        if (statusFilter === 'PENDING_REVIEW') vacancyStatus = 'PENDING';
-        if (!statusFilter) vacancyStatus = undefined;
-        
-        const resVac = await vacancyService.getAdminVacancies({ status: vacancyStatus, size: 100 });
+        const resVac = await vacancyService.getAdminVacancies({ size: 200 });
         const vacItems = resVac.data?.data?.content || resVac.data?.content || resVac.data || [];
         vacancyData = Array.isArray(vacItems) ? vacItems : [];
       } catch (err) {
@@ -122,12 +118,25 @@ export default function VacancyApprovalsQueue() {
 
         // If the vacancy does not exist in vacancy service, it has been DELETED!
         // Do not add orphaned / deleted records to the queue.
-        if (!directVac && vacancyData.length > 0) {
+        if (!directVac && vacancyMap.size > 0) {
           return;
         }
 
         if (p.status === 'DELETED' || directVac?.status === 'DELETED') {
           return;
+        }
+
+        const effectiveStatus = directVac?.status || p.status || 'PENDING';
+
+        // Apply status filter based on the true vacancy lifecycle status
+        if (statusFilter === 'PENDING_REVIEW') {
+          if (effectiveStatus !== 'PENDING' && effectiveStatus !== 'PENDING_REVIEW') {
+            return;
+          }
+        } else if (statusFilter && statusFilter !== '') {
+          if (effectiveStatus !== statusFilter) {
+            return;
+          }
         }
 
         handledVacancyIds.add(vacId);
@@ -151,7 +160,7 @@ export default function VacancyApprovalsQueue() {
           tags: directVac?.tags || p.tags || '',
           targetFaculties: directVac?.targetFaculties || ai?.targetFaculty || 'Faculty of Computing',
           storageFileId: directVac?.storageFileId || p.storageFileId,
-          status: directVac?.status || p.status || 'PENDING',
+          status: effectiveStatus,
           submittedDate: p.submittedAt || directVac?.createdAt || Date.now(),
           aiAnalysis: ai,
           institutionalScore: ai?.institutionalMatchScore || 90,
@@ -164,6 +173,15 @@ export default function VacancyApprovalsQueue() {
       vacancyData.forEach(v => {
         const vacId = String(v.id);
         if (!handledVacancyIds.has(vacId)) {
+          if (v.status === 'DELETED') return;
+
+          // Apply status filter
+          if (statusFilter === 'PENDING_REVIEW') {
+            if (v.status !== 'PENDING' && v.status !== 'PENDING_REVIEW') return;
+          } else if (statusFilter && statusFilter !== '') {
+            if (v.status !== statusFilter) return;
+          }
+
           const ai = parseAiAnalysis(v.aiMissingFields);
           mergedList.push({
             id: v.id,

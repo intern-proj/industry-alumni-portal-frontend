@@ -204,6 +204,14 @@ export default function JobPostDetailPage() {
         status: 'APPROVED',
         comments: 'Approved and published to undergraduate portal by faculty coordinator.'
       });
+      try {
+        await platformService.submitVacancyDecisionByVacancyId(id, {
+          decision: 'APPROVE',
+          decisionNotes: 'Approved and published by faculty coordinator.'
+        });
+      } catch (syncErr) {
+        console.warn('Could not sync approval decision to platform service:', syncErr);
+      }
       setVacancy(prev => ({ ...prev, status: 'APPROVED' }));
       setSuccessMsg('Vacancy approved successfully! It is now live and globally visible across the portal.');
     } catch (err) {
@@ -225,6 +233,11 @@ export default function JobPostDetailPage() {
         status: 'CHANGES_REQUESTED',
         comments: modificationNotes
       });
+      try {
+        await platformService.deleteVacancyApprovalByVacancyId(id);
+      } catch (syncErr) {
+        console.warn('Could not sync modification request to platform service:', syncErr);
+      }
       setVacancy(prev => ({ ...prev, status: 'CHANGES_REQUESTED', coordinatorNotes: modificationNotes }));
       setShowModificationModal(false);
       setSuccessMsg('Modification request sent to the corporate partner successfully.');
@@ -248,6 +261,15 @@ export default function JobPostDetailPage() {
         rejectionReason: rejectionReason,
         comments: rejectionReason
       });
+      try {
+        await platformService.submitVacancyDecisionByVacancyId(id, {
+          decision: 'REJECT',
+          rejectionReason: rejectionReason,
+          decisionNotes: rejectionReason
+        });
+      } catch (syncErr) {
+        console.warn('Could not sync reject decision to platform service:', syncErr);
+      }
       setVacancy(prev => ({ ...prev, status: 'REJECTED', rejectionReason: rejectionReason }));
       setShowRejectModal(false);
       setSuccessMsg('Vacancy rejected.');

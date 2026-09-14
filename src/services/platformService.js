@@ -83,6 +83,9 @@ export const platformService = {
   deleteVacancyApproval: (id) =>
     api.delete(`/admin/vacancy-approvals/${id}`),
 
+  submitVacancyDecisionByVacancyId: (vacancyId, data) =>
+    api.post(`/admin/vacancy-approvals/by-vacancy/${vacancyId}/decision`, data),
+
   deleteVacancyApprovalByVacancyId: (vacancyId) =>
     api.delete(`/admin/vacancy-approvals/by-vacancy/${vacancyId}`).catch(() => {}),
 };
