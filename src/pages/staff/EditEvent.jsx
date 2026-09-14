@@ -25,7 +25,7 @@ export default function EditEvent() {
     title: '',
     description: '',
     coverImage: '',
-    eventType: 'WORKSHOP',
+    eventType: 'Workshop',
     targetFaculties: [],
     startDateTime: '',
     endDateTime: '',
@@ -57,7 +57,7 @@ export default function EditEvent() {
           title: ev.title || '',
           description: ev.description || '',
           coverImage: ev.coverImage || '',
-          eventType: ev.eventType || 'WORKSHOP',
+          eventType: ev.eventType || 'Workshop',
           targetFaculties: ev.targetFaculties ? ev.targetFaculties.split(',') : [],
           startDateTime: ev.startDateTime ? ev.startDateTime.substring(0, 16) : '',
           endDateTime: ev.endDateTime ? ev.endDateTime.substring(0, 16) : '',
@@ -245,20 +245,43 @@ export default function EditEvent() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Event Name *</label>
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Event Name *</label>
                 <Input name="title" value={eventData.title} onChange={handleEventChange} required />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Required Attendance Rate (%)</label>
-                <Input type="number" name="requiredAttendanceRate" placeholder="e.g. 80" min="0" max="100" value={eventData.requiredAttendanceRate} onChange={handleEventChange} />
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Event Type * (Type any category)</label>
+                <Input 
+                  name="eventType" 
+                  value={eventData.eventType} 
+                  onChange={handleEventChange} 
+                  list="edit-event-type-options" 
+                  placeholder="Type event type, e.g. Workshop, Hackathon, Guest Lecture, Seminar..." 
+                  required 
+                />
+                <datalist id="edit-event-type-options">
+                  <option value="Workshop" />
+                  <option value="Hackathon" />
+                  <option value="Guest Lecture" />
+                  <option value="Seminar" />
+                  <option value="Industry Meetup" />
+                  <option value="Career Fair" />
+                  <option value="Tech Symposium" />
+                  <option value="Webinar" />
+                  <option value="Panel Discussion" />
+                  <option value="Networking Night" />
+                </datalist>
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Start Date & Time *</label>
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Start Date & Time *</label>
                 <Input type="datetime-local" name="startDateTime" value={eventData.startDateTime} onChange={handleEventChange} required />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">End Date & Time</label>
+                <label className="text-sm font-medium text-slate-900 dark:text-white">End Date & Time</label>
                 <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Required Attendance Rate (%)</label>
+                <Input type="number" name="requiredAttendanceRate" placeholder="e.g. 80" min="0" max="100" value={eventData.requiredAttendanceRate} onChange={handleEventChange} />
               </div>
               
               <div className="space-y-2 md:col-span-2 mt-2">

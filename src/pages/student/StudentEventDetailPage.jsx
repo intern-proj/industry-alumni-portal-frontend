@@ -410,12 +410,12 @@ export default function StudentEventDetailPage() {
                 <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
                   <span className="material-symbols-outlined text-[16px]">groups</span>
                 </div>
-                <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">Delivery Format</p>
-                  <p className="text-slate-500 mt-0.5">
-                    {event.eventType === 'WORKSHOP' ? 'Interactive Hands-on Workshop' : 'Industry Guest Lecture'}
-                  </p>
-                </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Format & Category</h3>
+                    <p className="text-xs text-slate-500">
+                      {event.eventType || 'Event Session'}
+                    </p>
+                  </div>
               </div>
 
               {event.coordinatorName && (

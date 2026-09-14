@@ -306,8 +306,8 @@ export default function EventDetail() {
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 text-slate-400"><span className="material-symbols-outlined text-[18px]">groups</span></div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Format</p>
-                  <p className="text-sm text-slate-500">{event.eventType === 'WORKSHOP' ? 'Interactive Workshop' : 'Guest Lecture'}</p>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Format & Type</p>
+                  <p className="text-sm text-slate-500">{event.eventType || 'Interactive Session'}</p>
                 </div>
               </div>
             </div>
