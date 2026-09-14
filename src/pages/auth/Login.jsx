@@ -46,7 +46,7 @@ export default function Login() {
     const pendingSessionToken = localStorage.getItem('pending_session_token');
     if (pendingSessionToken) {
       localStorage.removeItem('pending_session_token');
-      window.location.href = `/?session_token=${pendingSessionToken}`;
+      window.location.href = `/attendance/mark?session_token=${pendingSessionToken}`;
       return;
     }
 

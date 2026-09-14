@@ -79,5 +79,11 @@ export const platformService = {
 
   adminEditVacancyApproval: (id, data) =>
     api.patch(`/admin/vacancy-approvals/${id}`, data),
+
+  deleteVacancyApproval: (id) =>
+    api.delete(`/admin/vacancy-approvals/${id}`),
+
+  deleteVacancyApprovalByVacancyId: (vacancyId) =>
+    api.delete(`/admin/vacancy-approvals/by-vacancy/${vacancyId}`).catch(() => {}),
 };
 

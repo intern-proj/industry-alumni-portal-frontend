@@ -244,6 +244,11 @@ export default function ManagePostedVacancies() {
       onConfirm: async () => {
         try {
           await vacancyService.deleteVacancy(id);
+          try {
+            await platformService.deleteVacancyApprovalByVacancyId(id);
+          } catch (platErr) {
+            console.warn("Could not delete platform approval record:", platErr);
+          }
           setVacancies(prev => prev.filter(v => v.id !== id));
         } catch (err) {
           console.error("Failed to delete vacancy", err);

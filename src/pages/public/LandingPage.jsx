@@ -55,25 +55,8 @@ export default function LandingPage() {
     }
 
     if (sessionToken) {
-      if (!user) {
-        // Redirect to login if not logged in
-        localStorage.setItem('pending_session_token', sessionToken);
-        navigate('/login?redirect=session-checkin');
-        return;
-      } else if (user.role === 'STUDENT') {
-        // Call backend to mark attendance
-        eventService.scanAttendance({ token: sessionToken })
-          .then((res) => {
-            setAttendanceMessage({ type: 'success', text: res.data?.message || 'Attendance successfully recorded!' });
-          })
-          .catch((err) => {
-            setAttendanceMessage({ type: 'error', text: err.response?.data?.error || 'Failed to record attendance.' });
-          })
-          .finally(() => {
-            // Remove token from URL
-            navigate('/', { replace: true });
-          });
-      }
+      navigate(`/attendance/mark?session_token=${sessionToken}`, { replace: true });
+      return;
     }
 
     eventService.getEvents({ size: 3, sort: 'startDateTime,desc' })

@@ -51,6 +51,34 @@ export default function VacancyApprovalsQueue() {
     }
   };
 
+  const handleDeleteOrDismiss = (row) => {
+    window.confirmAction({
+      title: 'Delete Vacancy Posting',
+      message: `Are you sure you want to permanently delete the vacancy "${row.title || row.vacancyTitle}"? This will remove all associated governance and application records.`,
+      onConfirm: async () => {
+        try {
+          if (row.vacancyId) {
+            await vacancyService.deleteVacancy(row.vacancyId).catch(() => {});
+          }
+          if (row.approvalId) {
+            await platformService.deleteVacancyApproval(row.approvalId).catch(() => {});
+          } else if (row.vacancyId) {
+            await platformService.deleteVacancyApprovalByVacancyId(row.vacancyId).catch(() => {});
+          }
+          setApprovals(prev => prev.filter(a => a.id !== row.id && a.vacancyId !== row.vacancyId));
+          if (window.toast) {
+            window.toast.success('Vacancy successfully removed from queue.');
+          }
+        } catch (err) {
+          console.error('Failed to delete vacancy:', err);
+          if (window.toast) {
+            window.toast.error('Failed to delete vacancy.');
+          }
+        }
+      }
+    });
+  };
+
   const fetchApprovals = async () => {
     setLoading(true);
     try {
@@ -64,33 +92,44 @@ export default function VacancyApprovalsQueue() {
         console.warn('Could not fetch from platformService:', err);
       }
 
-      // 2. Fetch vacancies directly from vacancy service to get rich AI metadata
+      // 2. Fetch vacancies directly from vacancy service
       let vacancyData = [];
       try {
         let vacancyStatus = statusFilter;
         if (statusFilter === 'PENDING_REVIEW') vacancyStatus = 'PENDING';
         if (!statusFilter) vacancyStatus = undefined;
         
-        const resVac = await vacancyService.getAdminVacancies({ status: vacancyStatus, size: 50 });
+        const resVac = await vacancyService.getAdminVacancies({ status: vacancyStatus, size: 100 });
         const vacItems = resVac.data?.data?.content || resVac.data?.content || resVac.data || [];
         vacancyData = Array.isArray(vacItems) ? vacItems : [];
       } catch (err) {
         console.warn('Could not fetch from vacancyService:', err);
       }
 
-      // 3. Create a map of vacancies by ID
+      // 3. Create a map of existing vacancies by ID
       const vacancyMap = new Map();
       vacancyData.forEach(v => {
         if (v.id) vacancyMap.set(String(v.id), v);
       });
 
-      // 4. Merge data sources
+      // 4. Merge data sources, strictly excluding deleted / orphaned approvals
       const mergedList = [];
       const handledVacancyIds = new Set();
 
       platformData.forEach(p => {
         const vacId = String(p.vacancyId || p.id);
         const directVac = vacancyMap.get(vacId);
+
+        // If the vacancy does not exist in vacancy service, it has been DELETED!
+        // Do not add orphaned / deleted records to the queue.
+        if (!directVac && vacancyData.length > 0) {
+          return;
+        }
+
+        if (p.status === 'DELETED' || directVac?.status === 'DELETED') {
+          return;
+        }
+
         handledVacancyIds.add(vacId);
 
         const ai = parseAiAnalysis(directVac?.aiMissingFields || p.aiMissingFields);
@@ -280,14 +319,29 @@ export default function VacancyApprovalsQueue() {
       key: 'actions',
       header: 'Actions',
       render: (row) => (
-        <Button 
-          size="sm" 
-          variant={row.status === 'PENDING' || row.status === 'PENDING_REVIEW' || row.status === 'CHANGES_REQUESTED' ? 'default' : 'outline'}
-          icon="open_in_new"
-          onClick={() => navigate(`/staff/vacancy-approvals/${row.vacancyId || row.id}`)}
-        >
-          {isViewOnly ? 'View Job Post' : 'Review & Inspect'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            variant={row.status === 'PENDING' || row.status === 'PENDING_REVIEW' || row.status === 'CHANGES_REQUESTED' ? 'default' : 'outline'}
+            icon="open_in_new"
+            onClick={() => navigate(`/staff/vacancy-approvals/${row.vacancyId || row.id}`)}
+          >
+            {isViewOnly ? 'View' : 'Review'}
+          </Button>
+          {!isViewOnly && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/40 p-2"
+              icon="delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteOrDismiss(row);
+              }}
+              title="Delete or dismiss from queue"
+            />
+          )}
+        </div>
       )
     }
   ];

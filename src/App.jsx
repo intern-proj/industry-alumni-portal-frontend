@@ -40,6 +40,7 @@ import StudentCompanies from './pages/student/StudentCompanies';
 import StudentCompanyDetailPage from './pages/student/StudentCompanyDetailPage';
 import JobApplicationSubmissionPage from './pages/student/JobApplicationSubmissionPage';
 import JobApplicationDetailsPage from './pages/student/JobApplicationDetailsPage';
+import AttendanceMarkPage from './pages/student/AttendanceMarkPage';
 
 // Partner Pages
 import PartnerDashboard from './pages/partner/PartnerDashboard';
@@ -115,6 +116,9 @@ function App() {
             <Route path="/partner/register" element={<PartnerRegistrationApplication />} />
             <Route path="/verify/:qrHash" element={<CertificateVerification />} />
             <Route path="/verify-speaker" element={<VerifySpeaker />} />
+            <Route path="/attendance/mark" element={<AttendanceMarkPage />} />
+            <Route path="/attendance/scan" element={<AttendanceMarkPage />} />
+            <Route path="/attendance" element={<AttendanceMarkPage />} />
           </Route>
 
           {/* Auth Routes */}

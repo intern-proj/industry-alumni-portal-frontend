@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { vacancyService } from '../../services/vacancyService';
+import { platformService } from '../../services/platformService';
 import { applicationService } from '../../services/applicationService';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -290,6 +291,11 @@ export default function JobPostDetailPage() {
     setError('');
     try {
       await vacancyService.deleteVacancy(id);
+      try {
+        await platformService.deleteVacancyApprovalByVacancyId(id);
+      } catch (platErr) {
+        console.warn('Could not clean platform approval record:', platErr);
+      }
       setShowDeleteModal(false);
       navigate(isStaff ? '/staff/vacancy-approvals' : '/partner/vacancies');
     } catch (err) {
@@ -309,13 +315,19 @@ export default function JobPostDetailPage() {
 
   if (!vacancy) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-16 h-16 bg-rose-100 dark:bg-rose-950/60 rounded-full flex items-center justify-center mx-auto text-rose-600">
-          <span className="material-symbols-outlined text-3xl">error</span>
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-500">
+          <span className="material-symbols-outlined text-3xl">work_off</span>
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Vacancy Not Found</h2>
-        <p className="text-slate-500 text-sm">{error || "The requested job post could not be retrieved."}</p>
-        <Button onClick={() => navigate(-1)} icon="arrow_back">Go Back</Button>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Vacancy No Longer Available</h2>
+        <p className="text-slate-500 text-sm">
+          {error || "This vacancy posting has been removed, deleted, or cannot be accessed."}
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Button onClick={() => navigate(isStaff ? '/staff/vacancy-approvals' : isPartner ? '/partner/vacancies' : '/vacancies')} variant="primary" icon="arrow_back">
+            Return to Vacancies
+          </Button>
+        </div>
       </div>
     );
   }
