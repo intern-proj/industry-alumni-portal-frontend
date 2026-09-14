@@ -72,7 +72,7 @@ export default function GuestSpeakerProfile() {
       setSpeaker(editData);
       setIsEditing(false);
     } catch (err) {
-      window.toast.error('Failed to update profile.');
+      window.toast.error(err.response?.data?.message || 'Failed to update profile.');
     } finally {
       setSaving(false);
     }

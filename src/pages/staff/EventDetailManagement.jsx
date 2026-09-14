@@ -20,10 +20,58 @@ export default function EventDetailManagement() {
   const [qrLoading, setQrLoading] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   useEffect(() => {
     loadEventDetails();
   }, [id]);
+
+  const handleGalleryUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadingGallery(true);
+    try {
+      const uploadedFileIds = [];
+      for (const file of files) {
+        const res = await storageService.uploadFile(file, { uploaderId: 'staff', fileType: 'OTHER' });
+        if (res.data?.fileId) {
+          uploadedFileIds.push(res.data.fileId);
+        }
+      }
+      if (uploadedFileIds.length > 0) {
+        const res = await eventService.addGalleryImages(id, uploadedFileIds);
+        const updatedEvent = res.data?.data || res.data;
+        setEvent(updatedEvent);
+        if (window.toast) {
+          window.toast.success(`Added ${uploadedFileIds.length} photo(s) to event gallery!`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to upload gallery images', err);
+      if (window.toast) {
+        window.toast.error('Failed to upload some or all gallery images.');
+      }
+    } finally {
+      setUploadingGallery(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveGalleryImage = async (imgId) => {
+    try {
+      const res = await eventService.removeGalleryImage(id, imgId);
+      const updatedEvent = res.data?.data || res.data;
+      setEvent(updatedEvent);
+      if (window.toast) {
+        window.toast.success('Photo removed from event gallery.');
+      }
+    } catch (err) {
+      console.error('Failed to remove gallery image', err);
+      if (window.toast) {
+        window.toast.error('Failed to remove photo.');
+      }
+    }
+  };
 
   const loadEventDetails = async () => {
     setLoading(true);
@@ -258,6 +306,105 @@ export default function EventDetailManagement() {
               <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{event.description || 'No description provided.'}</p>
             </CardContent>
           </Card>
+
+          {/* Post-Event Photo Gallery (Featured on COMPLETED events) */}
+          {event.status === 'COMPLETED' && (
+            <Card className="border-2 border-purple-200 dark:border-purple-900/50 overflow-hidden shadow-md">
+              <CardHeader className="bg-purple-50/70 dark:bg-purple-950/40 border-b border-purple-100 dark:border-purple-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[22px]">photo_library</span>
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg text-purple-950 dark:text-purple-100">
+                      Event Photo Gallery & Highlights
+                    </CardTitle>
+                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                      Photos uploaded here will be showcased in the public and student event pages.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-sm transition-colors shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">
+                    {uploadingGallery ? 'hourglass_top' : 'add_photo_alternate'}
+                  </span>
+                  {uploadingGallery ? 'Uploading Photos...' : 'Add Event Photos'}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleGalleryUpload}
+                    disabled={uploadingGallery}
+                    className="hidden"
+                  />
+                </label>
+              </CardHeader>
+              <CardContent className="p-6">
+                {!event.galleryImages || event.galleryImages.length === 0 ? (
+                  <div className="p-10 text-center border-2 border-dashed border-purple-200 dark:border-purple-900/50 rounded-2xl bg-purple-50/30 dark:bg-purple-950/20 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto">
+                      <span className="material-symbols-outlined text-[28px]">add_a_photo</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-800 dark:text-slate-200">No Gallery Photos Yet</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+                        Upload photos taken during this event to share highlights and memories with attendees and visitors.
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-sm transition-colors mt-2">
+                      <span className="material-symbols-outlined text-[16px]">upload</span>
+                      Select Photos from Computer
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleGalleryUpload}
+                        disabled={uploadingGallery}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>{event.galleryImages.length} photo(s) in event gallery</span>
+                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
+                        Hover over an image to remove it
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {event.galleryImages.map((imgId, gIdx) => (
+                        <div
+                          key={imgId || gIdx}
+                          className="group relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 shadow-sm"
+                        >
+                          <img
+                            src={storageService.getFileUrl(imgId)}
+                            alt={`Gallery ${gIdx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGalleryImage(imgId)}
+                              className="p-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                              title="Delete Photo"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          </div>
+                          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[10px] font-mono text-white">
+                            #{gIdx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Sessions & Lectures</h3>

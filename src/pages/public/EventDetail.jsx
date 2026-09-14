@@ -13,6 +13,7 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [registration, setRegistration] = useState(null);
   const [registering, setRegistering] = useState(false);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(null);
 
   useEffect(() => {
     eventService.getEventById(id)
@@ -103,7 +104,17 @@ export default function EventDetail() {
             <span className="px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
               {event.eventType || 'Workshop'}
             </span>
-            {event.status && (
+            {event.status === 'COMPLETED' ? (
+              <span className="px-3 py-1 rounded-full bg-purple-500/30 border border-purple-400/40 text-purple-200 text-xs font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Event Completed
+              </span>
+            ) : event.status === 'CANCELLED' ? (
+              <span className="px-3 py-1 rounded-full bg-rose-500/30 border border-rose-400/40 text-rose-200 text-xs font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">cancel</span>
+                Cancelled
+              </span>
+            ) : event.status && (
               <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20 text-slate-200 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
                 {event.status}
               </span>
@@ -347,6 +358,48 @@ export default function EventDetail() {
             </section>
           )}
 
+          {/* Completed Event Photo Gallery Showcase */}
+          {event.galleryImages && event.galleryImages.length > 0 && (
+            <section className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-purple-500">photo_library</span>
+                    Event Photo Gallery & Highlights
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Memorable moments, keynote highlights, and networking recap from this completed session.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-xs border border-purple-200 dark:border-purple-800/80 w-fit">
+                  {event.galleryImages.length} {event.galleryImages.length === 1 ? 'Photo' : 'Photos'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {event.galleryImages.map((imgUrl, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setActivePhotoIdx(idx)}
+                    className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-sm hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                  >
+                    <img
+                      src={storageService.getFileUrl(imgUrl)}
+                      alt={`Event Highlight ${idx + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                      <div className="flex items-center gap-1.5 text-white text-xs font-semibold">
+                        <span className="material-symbols-outlined text-[18px]">zoom_in</span>
+                        View Full Photo
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
         </div>
 
         {/* Right Column (Sidebar CTA) */}
@@ -357,12 +410,49 @@ export default function EventDetail() {
             <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
               <span className="material-symbols-outlined text-[24px]">how_to_reg</span>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Join the Event</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+              {event.status === 'COMPLETED' ? 'Event Concluded' : event.status === 'CANCELLED' ? 'Event Cancelled' : 'Join the Event'}
+            </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-              Reserve your spot to gain valuable industry insights and network with professionals.
+              {event.status === 'COMPLETED'
+                ? 'This event has successfully concluded. You can explore the photo highlights and session details.'
+                : event.status === 'CANCELLED'
+                ? 'This event is no longer taking place.'
+                : 'Reserve your spot to gain valuable industry insights and network with professionals.'}
             </p>
             
-            {user?.role === 'STUDENT' ? (
+            {event.status === 'COMPLETED' ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/80 space-y-2">
+                  <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold text-sm">
+                    <span className="material-symbols-outlined text-[20px]">task_alt</span>
+                    Event Concluded
+                  </div>
+                  <p className="text-xs text-purple-800 dark:text-purple-200 leading-relaxed">
+                    This event took place on {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Browse the photo gallery recap above!
+                  </p>
+                </div>
+                {user?.role === 'STUDENT' && (
+                  <Link
+                    to={`/student/events/${id}`}
+                    className="flex items-center justify-center w-full gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs shadow-md shadow-purple-600/20"
+                  >
+                    View Attendance & Certificate
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </Link>
+                )}
+              </div>
+            ) : event.status === 'CANCELLED' ? (
+              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 space-y-2">
+                <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold text-sm">
+                  <span className="material-symbols-outlined text-[20px]">cancel</span>
+                  Event Cancelled
+                </div>
+                <p className="text-xs text-rose-800 dark:text-rose-200 leading-relaxed">
+                  This scheduled event has been cancelled. Please check other upcoming events on our portal.
+                </p>
+              </div>
+            ) : user?.role === 'STUDENT' ? (
               registration ? (
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-2">
@@ -429,6 +519,62 @@ export default function EventDetail() {
 
         </div>
       </div>
+
+      {/* Photo Lightbox Modal */}
+      {activePhotoIdx !== null && event.galleryImages && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6"
+          onClick={() => setActivePhotoIdx(null)}
+        >
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full flex items-center justify-between pb-3 text-white">
+              <span className="text-xs sm:text-sm font-semibold text-slate-300">
+                Photo {activePhotoIdx + 1} of {event.galleryImages.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActivePhotoIdx(null)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="relative w-full flex items-center justify-center">
+              <img
+                src={storageService.getFileUrl(event.galleryImages[activePhotoIdx])}
+                alt={`Photo ${activePhotoIdx + 1}`}
+                className="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
+              />
+
+              {event.galleryImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePhotoIdx((prev) => (prev > 0 ? prev - 1 : event.galleryImages.length - 1));
+                    }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all backdrop-blur-sm border border-white/10"
+                  >
+                    <span className="material-symbols-outlined text-[24px]">chevron_left</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePhotoIdx((prev) => (prev < event.galleryImages.length - 1 ? prev + 1 : 0));
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all backdrop-blur-sm border border-white/10"
+                  >
+                    <span className="material-symbols-outlined text-[24px]">chevron_right</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

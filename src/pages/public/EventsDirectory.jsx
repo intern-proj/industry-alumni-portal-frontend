@@ -9,7 +9,7 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
-const EVENT_CATEGORIES = ['ALL', 'WORKSHOP', 'HACKATHON', 'GUEST LECTURE', 'SEMINAR', 'INDUSTRY MEETUP'];
+const EVENT_CATEGORIES = ['ALL', 'WORKSHOP', 'HACKATHON', 'GUEST LECTURE', 'SEMINAR', 'INDUSTRY MEETUP', 'COMPLETED'];
 
 export default function EventsDirectory() {
   const { user } = useAuth();
@@ -71,12 +71,21 @@ export default function EventsDirectory() {
 
   // Filter events by selected category
   const filteredEvents = useMemo(() => {
-    if (selectedCategory === 'ALL') return events;
     return events.filter((e) => {
-      const type = (e.eventType || '').toUpperCase();
-      return type.includes(selectedCategory);
+      const matchCat =
+        selectedCategory === 'ALL'
+          ? true
+          : selectedCategory === 'COMPLETED'
+          ? e.status === 'COMPLETED'
+          : (e.eventType || '').toUpperCase() === selectedCategory;
+      const matchSearch =
+        !search ||
+        (e.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (e.description || '').toLowerCase().includes(search.toLowerCase()) ||
+        (e.venueName || '').toLowerCase().includes(search.toLowerCase());
+      return matchCat && matchSearch;
     });
-  }, [events, selectedCategory]);
+  }, [events, selectedCategory, search]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
@@ -202,6 +211,18 @@ export default function EventsDirectory() {
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-md backdrop-blur-md bg-slate-900/80 text-white border border-white/10">
                       {event.eventType || 'Workshop'}
                     </span>
+                    {event.status === 'COMPLETED' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-600/90 text-white shadow-md backdrop-blur-md border border-purple-400/30">
+                        <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                        Completed
+                      </span>
+                    )}
+                    {event.status === 'CANCELLED' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600/90 text-white shadow-md backdrop-blur-md border border-rose-400/30">
+                        <span className="material-symbols-outlined text-[13px]">cancel</span>
+                        Cancelled
+                      </span>
+                    )}
                     {isLive && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white uppercase shadow-md animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
@@ -253,12 +274,24 @@ export default function EventsDirectory() {
                       to={`/events/${event.id}`}
                       className="flex-1"
                     >
-                      <Button variant="outline" size="sm" className="w-full text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800">
-                        View Details
+                      <Button variant="outline" size="sm" className="w-full text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-1">
+                        {event.status === 'COMPLETED' && <span className="material-symbols-outlined text-[15px] text-purple-500">photo_library</span>}
+                        {event.status === 'COMPLETED' ? 'View Recap' : 'View Details'}
                       </Button>
                     </Link>
 
-                    {user?.role === 'STUDENT' ? (
+                    {event.status === 'COMPLETED' ? (
+                      <Link to={`/events/${event.id}`} className="flex-1">
+                        <div className="py-1.5 px-3 rounded-lg bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center justify-center gap-1">
+                          <span className="material-symbols-outlined text-[15px]">verified</span>
+                          Concluded
+                        </div>
+                      </Link>
+                    ) : event.status === 'CANCELLED' ? (
+                      <div className="flex-1 py-1.5 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center">
+                        Cancelled
+                      </div>
+                    ) : user?.role === 'STUDENT' ? (
                       isRegistered ? (
                         <div className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-center gap-1">
                           <span className="material-symbols-outlined text-[16px]">check_circle</span>

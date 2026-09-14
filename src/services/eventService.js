@@ -12,6 +12,8 @@ export const eventService = {
   cancelEvent: (id) => api.patch(`/events/${id}/cancel`),
   assignCoordinator: (id, data) => api.post(`/events/${id}/coordinator`, data),
   removeCoordinator: (id) => api.delete(`/events/${id}/coordinator`),
+  addGalleryImages: (id, images) => api.post(`/events/${id}/gallery`, { images: Array.isArray(images) ? images : [images] }),
+  removeGalleryImage: (id, imageUrl) => api.delete(`/events/${id}/gallery`, { params: { imageUrl } }),
 
   // Eligibility Criteria
   getEligibilityCriteria: (eventId) => api.get(`/events/${eventId}/eligibility-criteria`),
