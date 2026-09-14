@@ -15,4 +15,14 @@ export const participationService = {
   getQrSessionsByEvent: (eventId) => api.get(`/events/${eventId}/qr-sessions`),
   verifyQrCode: (qrCodeValue) => api.get(`/qr-sessions/${qrCodeValue}/verify`),
   deactivateQrSession: (qrId) => api.delete(`/qr-sessions/${qrId}`),
+
+  // Attendance
+  checkinAttendance: (data) => api.post('/attendance/checkin', data),
+  getAttendanceByRegistration: (registrationId) => api.get(`/attendance/registration/${registrationId}`),
+
+  // Feedback
+  submitFeedback: (data) => api.post('/feedback', data),
+
+  // Certificate Eligibility
+  getCertificateEligibility: (registrationId) => api.get(`/certificate-eligibility/registration/${registrationId}`),
 };
