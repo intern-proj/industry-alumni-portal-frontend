@@ -38,7 +38,7 @@ export default function EventDetail() {
         eventId: String(id),
         studentId: String(user.id),
         eventTitle: event?.title || 'Event Session',
-        venueName: event?.venueName || 'Campus Main Hall',
+        venueName: event?.venueName || event?.sessions?.[0]?.venueName || 'Online / TBA',
       });
       setRegistration(res.data);
       if (window.toast) window.toast.success('Successfully registered for this event!');
@@ -300,7 +300,7 @@ export default function EventDetail() {
                 <div className="mt-0.5 text-slate-400"><span className="material-symbols-outlined text-[18px]">location_on</span></div>
                 <div>
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Location</p>
-                  <p className="text-sm text-slate-500">{event.venueName || 'To Be Determined'}</p>
+                  <p className="text-sm text-slate-500">{event.venueName || event.sessions?.[0]?.venueName || 'To Be Determined'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">

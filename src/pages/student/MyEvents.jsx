@@ -89,7 +89,7 @@ export default function MyEvents() {
         eventId: String(event.id),
         studentId: String(user.id),
         eventTitle: event.title,
-        venueName: event.venueName || 'Campus Main Hall',
+        venueName: event.venueName || event.sessions?.[0]?.venueName || 'Online / TBA',
       };
 
       const res = await participationService.registerForEvent(payload);
@@ -234,7 +234,7 @@ export default function MyEvents() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[16px] text-rose-500">pin_drop</span>
-                          {reg.venueName || 'Campus Main Hall'}
+                          {reg.venueName || 'Online / Campus Venue'}
                         </span>
                       </div>
                     </div>
@@ -360,7 +360,7 @@ export default function MyEvents() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-[16px] text-slate-400 shrink-0">location_on</span>
-                          <span className="font-medium truncate">{evt.venueName || 'Campus Main Auditorium'}</span>
+                          <span className="font-medium truncate">{evt.venueName || evt.sessions?.[0]?.venueName || 'To Be Announced'}</span>
                         </div>
                       </div>
 
@@ -442,7 +442,7 @@ export default function MyEvents() {
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px] text-rose-500">location_on</span>
-                  {quickViewEvent.venueName || 'Campus Main Hall'}
+                  {quickViewEvent.venueName || quickViewEvent.sessions?.[0]?.venueName || 'To Be Announced'}
                 </span>
               </div>
               {quickViewEvent.description && (

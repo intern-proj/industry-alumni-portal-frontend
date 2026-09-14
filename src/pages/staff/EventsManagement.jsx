@@ -50,32 +50,85 @@ export default function EventsManagement() {
     return matchesSearch && matchesStatus;
   });
 
+  const handleQuickStatusChange = async (eventId, newStatus, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await eventService.updateEventStatus(eventId, newStatus);
+      setEvents((prev) =>
+        prev.map((ev) => (ev.id === eventId ? { ...ev, status: newStatus } : ev))
+      );
+      if (window.toast) window.toast.success(`Event status updated to ${newStatus}`);
+    } catch (err) {
+      if (window.toast) window.toast.error(err.response?.data?.message || 'Failed to update event status');
+    }
+  };
+
   const eventColumns = [
     { key: 'title', header: 'Event Title', render: (row) => <span className="font-semibold text-slate-900 dark:text-white">{row.title}</span> },
     { key: 'eventType', header: 'Type', render: (row) => <Badge variant="info">{row.eventType || 'Workshop'}</Badge> },
     { key: 'startDateTime', header: 'Date & Time', render: (row) => new Date(row.startDateTime || Date.now()).toLocaleDateString() },
-    { key: 'venueName', header: 'Venue', render: (row) => row.venueName || 'NSBM Auditorium' },
     {
-      key: 'status',
-      header: 'Status',
+      key: 'venueName',
+      header: 'Venue',
       render: (row) => {
-        const s = (row.status || 'DRAFT').toUpperCase();
-        const badgeConfig = {
-          SCHEDULED: { variant: 'info', label: 'Scheduled', icon: 'schedule' },
-          PUBLISHED: { variant: 'success', label: 'Published', icon: 'check_circle' },
-          ONGOING: { variant: 'success', label: 'Live Now', icon: 'play_circle' },
-          COMPLETED: { variant: 'placed', label: 'Completed', icon: 'task_alt' },
-          CANCELLED: { variant: 'danger', label: 'Cancelled', icon: 'cancel' },
-          DRAFT: { variant: 'neutral', label: 'Draft', icon: 'edit_note' },
-        }[s] || { variant: 'neutral', label: s, icon: 'info' };
-
-        return (
-          <Badge variant={badgeConfig.variant} className="inline-flex items-center gap-1">
-            <span className="material-symbols-outlined text-[12px]">{badgeConfig.icon}</span>
-            {badgeConfig.label}
-          </Badge>
+        const name = row.venueName || row.sessions?.[0]?.venueName;
+        return name ? (
+          <span className="text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span>
+            {name}
+          </span>
+        ) : (
+          <span className="text-slate-400 italic text-xs">Not Assigned</span>
         );
       }
+    },
+    {
+      key: 'status',
+      header: 'Status & Lifecycle',
+      render: (row) => {
+        const s = (row.status || 'DRAFT').toUpperCase();
+        return (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <select
+              value={s}
+              onChange={(e) => handleQuickStatusChange(row.id, e.target.value, e)}
+              className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-sm"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="ONGOING">Live Now</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => (
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="xs"
+            variant="outline"
+            icon="edit"
+            className="text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
+            onClick={() => navigate(`/staff/events/${row.id}/edit`)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            icon="visibility"
+            className="text-xs"
+            onClick={() => navigate(`/staff/events/${row.id}`)}
+          >
+            View
+          </Button>
+        </div>
+      )
     },
   ];
 

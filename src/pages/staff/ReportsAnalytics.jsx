@@ -109,7 +109,7 @@ export default function ReportsAnalytics() {
       ? stats.events.map(e => [
           e.id || 'EVT-01',
           e.title || 'Event',
-          e.venueName || e.venue || 'Main Auditorium',
+          e.venueName || e.sessions?.[0]?.venueName || e.venue || 'TBA',
           e.eventDate || new Date().toLocaleDateString(),
           e.registeredCount || e.capacity || 'Open',
           e.status || 'PUBLISHED'

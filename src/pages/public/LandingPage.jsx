@@ -353,7 +353,7 @@ export default function LandingPage() {
                       </h3>
                       <p className="text-xs text-slate-500 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span>
-                        {event.venueName || 'NSBM Green University'}
+                        {event.venueName || event.sessions?.[0]?.venueName || 'NSBM Green University'}
                       </p>
                     </div>
 

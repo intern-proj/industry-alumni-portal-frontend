@@ -189,24 +189,51 @@ export default function EditEvent() {
     setLoading(true);
     setErrorMsg('');
 
+    // Date sanity validation
+    const nowThreshold = new Date(Date.now() - 60000);
+    if ((eventData.status === 'SCHEDULED' || eventData.status === 'DRAFT') && eventData.startDateTime && new Date(eventData.startDateTime) < nowThreshold) {
+      setErrorMsg('Event start date and time cannot be set in the past for Scheduled or Draft events. Please select a future date and time.');
+      setLoading(false);
+      return;
+    }
+    if (eventData.endDateTime && new Date(eventData.endDateTime) <= new Date(eventData.startDateTime)) {
+      setErrorMsg('Event end date and time must be strictly after the start date and time.');
+      setLoading(false);
+      return;
+    }
+
     try {
+      const primaryVenueId = sessions[0]?.venueId && sessions[0].venueId !== 'ONLINE' 
+        ? Number(sessions[0].venueId) 
+        : null;
+
       const payload = {
-        ...eventData,
+        title: eventData.title,
+        description: eventData.description,
+        eventType: eventData.eventType,
+        coverImage: eventData.coverImage,
+        status: eventData.status,
+        venueId: primaryVenueId,
         startDateTime: eventData.startDateTime || null,
         endDateTime: eventData.endDateTime || null,
         requiredAttendanceRate: eventData.requiredAttendanceRate ? parseInt(eventData.requiredAttendanceRate) : null,
         targetFaculties: eventData.targetFaculties.join(','),
         sessions: sessions.map((s, idx) => ({
-          ...s,
+          id: s.id || null,
+          title: s.title,
+          description: s.description,
           sequenceOrder: idx + 1,
-          venueId: s.venueId === 'ONLINE' ? null : (s.venueId || null),
+          venueId: s.venueId === 'ONLINE' ? null : (s.venueId ? Number(s.venueId) : null),
           capacity: s.capacity ? parseInt(s.capacity) : null,
+          posterImage: s.posterImage || null,
           startTime: (s.sessionDate && s.startTime) ? `${s.sessionDate}T${s.startTime}` : eventData.startDateTime,
           endTime: (s.sessionDate && s.endTime) ? `${s.sessionDate}T${s.endTime}` : eventData.endDateTime,
-          lectures: s.lectures.map((l, lIdx) => ({
-            ...l,
+          lectures: (s.lectures || []).map((l, lIdx) => ({
+            id: l.id || null,
+            title: l.title,
+            description: l.description,
             sequenceOrder: lIdx + 1,
-            speakerId: l.speakerId || null,
+            speakerId: l.speakerId ? Number(l.speakerId) : null,
             startTime: (s.sessionDate && l.startTime) ? `${s.sessionDate}T${l.startTime}` : null,
             endTime: (s.sessionDate && l.endTime) ? `${s.sessionDate}T${l.endTime}` : null
           }))
@@ -216,6 +243,9 @@ export default function EditEvent() {
       await eventService.updateEvent(id, payload);
       if (eventData.status) {
         await eventService.updateEventStatus(id, eventData.status).catch(() => {});
+      }
+      if (window.toast) {
+        window.toast.success('Event updated successfully!');
       }
       navigate(`/staff/events/${id}`);
     } catch (err) {
@@ -278,11 +308,11 @@ export default function EditEvent() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Start Date & Time *</label>
-                <Input type="datetime-local" name="startDateTime" value={eventData.startDateTime} onChange={handleEventChange} required />
+                <Input type="datetime-local" name="startDateTime" value={eventData.startDateTime} onChange={handleEventChange} min={new Date().toISOString().slice(0, 16)} required />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">End Date & Time</label>
-                <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
+                <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} min={eventData.startDateTime || new Date().toISOString().slice(0, 16)} />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Event Status *</label>
@@ -386,7 +416,7 @@ export default function EditEvent() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Date *</label>
-                    <Input type="date" value={session.sessionDate} onChange={(e) => handleSessionChange(index, 'sessionDate', e.target.value)} required />
+                    <Input type="date" value={session.sessionDate} onChange={(e) => handleSessionChange(index, 'sessionDate', e.target.value)} min={new Date().toISOString().slice(0, 10)} required />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Start Time *</label>

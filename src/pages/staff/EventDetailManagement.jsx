@@ -328,6 +328,13 @@ export default function EventDetailManagement() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
+                <p className="text-xs font-medium text-slate-500 uppercase">Venue / Location</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1.5 mt-0.5">
+                  <span className="material-symbols-outlined text-[16px] text-rose-500">location_on</span>
+                  {event.venueName || event.sessions?.[0]?.venueName || 'Not Assigned / TBA'}
+                </p>
+              </div>
+              <div>
                 <p className="text-xs font-medium text-slate-500 uppercase">Starts</p>
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{new Date(event.startDateTime).toLocaleString()}</p>
               </div>

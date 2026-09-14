@@ -64,7 +64,7 @@ export default function StudentEventDetailPage() {
         eventId: String(id),
         studentId: String(user.id),
         eventTitle: event?.title || 'Industry Session',
-        venueName: event?.venueName || 'Campus Main Hall',
+        venueName: event?.venueName || event?.sessions?.[0]?.venueName || 'Online / TBA',
       };
 
       const res = await participationService.registerForEvent(payload);
@@ -191,7 +191,7 @@ export default function StudentEventDetailPage() {
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Venue</p>
-                <p className="font-semibold text-white">{event.venueName || 'Campus Main Hall'}</p>
+                <p className="font-semibold text-white">{event.venueName || event.sessions?.[0]?.venueName || 'To Be Announced'}</p>
               </div>
             </div>
 
@@ -402,7 +402,7 @@ export default function StudentEventDetailPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 dark:text-slate-200">Session Location</p>
-                  <p className="text-slate-500 mt-0.5">{event.venueName || 'Campus Main Hall'}</p>
+                  <p className="text-slate-500 mt-0.5">{event.venueName || event.sessions?.[0]?.venueName || 'To Be Announced'}</p>
                 </div>
               </div>
 

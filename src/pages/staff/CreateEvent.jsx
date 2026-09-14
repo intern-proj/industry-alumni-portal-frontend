@@ -139,9 +139,34 @@ export default function CreateEvent() {
     setLoading(true);
     setErrorMsg('');
 
+    // Prevent past dates
+    const nowThreshold = new Date(Date.now() - 60000); // 1-minute grace for form fill
+    if (new Date(eventData.startDateTime) < nowThreshold) {
+      setErrorMsg('Event start date and time cannot be set in the past. Please select a future date and time.');
+      setLoading(false);
+      return;
+    }
+    if (eventData.endDateTime && new Date(eventData.endDateTime) <= new Date(eventData.startDateTime)) {
+      setErrorMsg('Event end date and time must be strictly after the start date and time.');
+      setLoading(false);
+      return;
+    }
+    for (const s of sessions) {
+      if (s.sessionDate && new Date(`${s.sessionDate}T23:59:59`) < nowThreshold) {
+        setErrorMsg(`Session "${s.title || 'Untitled'}" date cannot be in the past.`);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      const primaryVenueId = sessions[0]?.venueId && sessions[0].venueId !== 'ONLINE' 
+        ? Number(sessions[0].venueId) 
+        : null;
+
       const payload = {
         ...eventData,
+        venueId: primaryVenueId,
         startDateTime: eventData.startDateTime || null,
         endDateTime: eventData.endDateTime || null,
         requiredAttendanceRate: eventData.requiredAttendanceRate ? parseInt(eventData.requiredAttendanceRate) : null,
@@ -149,14 +174,14 @@ export default function CreateEvent() {
         sessions: sessions.map((s, idx) => ({
           ...s,
           sequenceOrder: idx + 1,
-          venueId: s.venueId === 'ONLINE' ? null : (s.venueId || null),
+          venueId: s.venueId === 'ONLINE' ? null : (s.venueId ? Number(s.venueId) : null),
           capacity: s.capacity ? parseInt(s.capacity) : null,
           startTime: (s.sessionDate && s.startTime) ? `${s.sessionDate}T${s.startTime}` : eventData.startDateTime,
           endTime: (s.sessionDate && s.endTime) ? `${s.sessionDate}T${s.endTime}` : eventData.endDateTime,
           lectures: s.lectures.map((l, lIdx) => ({
             ...l,
             sequenceOrder: lIdx + 1,
-            speakerId: l.speakerId || null,
+            speakerId: l.speakerId ? Number(l.speakerId) : null,
             startTime: (s.sessionDate && l.startTime) ? `${s.sessionDate}T${l.startTime}` : null,
             endTime: (s.sessionDate && l.endTime) ? `${s.sessionDate}T${l.endTime}` : null
           }))
@@ -225,11 +250,11 @@ export default function CreateEvent() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Start Date & Time *</label>
-                <Input type="datetime-local" name="startDateTime" value={eventData.startDateTime} onChange={handleEventChange} required />
+                <Input type="datetime-local" min={new Date().toISOString().slice(0, 16)} name="startDateTime" value={eventData.startDateTime} onChange={handleEventChange} required />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">End Date & Time</label>
-                <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
+                <Input type="datetime-local" min={eventData.startDateTime || new Date().toISOString().slice(0, 16)} name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Publishing Status *</label>
@@ -330,7 +355,7 @@ export default function CreateEvent() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Date *</label>
-                    <Input type="date" value={session.sessionDate} onChange={(e) => handleSessionChange(index, 'sessionDate', e.target.value)} required />
+                    <Input type="date" min={new Date().toISOString().slice(0, 10)} value={session.sessionDate} onChange={(e) => handleSessionChange(index, 'sessionDate', e.target.value)} required />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-500">Start Time *</label>

@@ -78,6 +78,8 @@ import AiModelConfigurationManager from './pages/admin/AiModelConfigurationManag
 
 // Guest Speaker Pages
 import GuestSpeakerDashboard from './pages/guest/GuestSpeakerDashboard';
+import GuestSpeakerEvents from './pages/guest/GuestSpeakerEvents';
+import GuestSpeakerMaterials from './pages/guest/GuestSpeakerMaterials';
 
 // Utility Pages
 import NotFound from './pages/utility/NotFound';
@@ -204,6 +206,8 @@ function App() {
           >
             <Route index element={<Navigate to="/guest-speaker/dashboard" replace />} />
             <Route path="dashboard" element={<GuestSpeakerDashboard />} />
+            <Route path="events" element={<GuestSpeakerEvents />} />
+            <Route path="materials" element={<GuestSpeakerMaterials />} />
           </Route>
 
           {/* Dedicated System Administrator Routes */}

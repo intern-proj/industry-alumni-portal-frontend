@@ -53,7 +53,7 @@ export default function EventsDirectory() {
         eventId: String(event.id),
         studentId: String(user.id),
         eventTitle: event.title,
-        venueName: event.venueName || 'Campus Main Hall',
+        venueName: event.venueName || event.sessions?.[0]?.venueName || 'Online / TBA',
       });
       setRegisteredEventIds((prev) => new Set([...prev, String(event.id)]));
       if (window.toast) window.toast.success(`Registered for "${event.title}"!`);
@@ -252,7 +252,7 @@ export default function EventsDirectory() {
 
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-[16px] text-slate-400 shrink-0">location_on</span>
-                      <span className="font-medium truncate">{event.venueName || 'Campus Main Auditorium'}</span>
+                      <span className="font-medium truncate">{event.venueName || event.sessions?.[0]?.venueName || 'To Be Announced'}</span>
                     </div>
 
                     {event.targetFaculties && (
