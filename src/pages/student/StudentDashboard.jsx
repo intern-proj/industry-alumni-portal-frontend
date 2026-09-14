@@ -261,7 +261,7 @@ export default function StudentDashboard() {
             <div className="p-8 text-center">
               <span className="material-symbols-outlined text-slate-400 text-[36px]">event_busy</span>
               <p className="font-body-base text-body-base text-slate-400 mt-2">No event registrations yet.</p>
-              <Link to="/student/events" className="btn-outline h-8 text-[12px] mt-3 inline-flex">Explore Upcoming Events</Link>
+              <Link to="/events" className="btn-outline h-8 text-[12px] mt-3 inline-flex">Explore Upcoming Events</Link>
             </div>
           ) : (
             <div className="overflow-x-auto">

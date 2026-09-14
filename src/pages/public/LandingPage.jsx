@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
 import { vacancyService } from '../../services/vacancyService';
+import { storageService } from '../../services/storageService';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -337,37 +338,54 @@ export default function LandingPage() {
               {events.slice(0, 3).map((event) => {
                 const date = new Date(event.startDateTime || Date.now());
                 return (
-                  <div key={event.id} className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 flex flex-col justify-between shadow-sm hover:shadow-xl transition-shadow">
-                    <div className="p-6 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold">
+                  <div key={event.id} className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group">
+                    {/* 16:9 Cover Thumbnail */}
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      {event.coverImage ? (
+                        <img
+                          src={storageService.getFileUrl(event.coverImage)}
+                          alt={event.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500/20 to-teal-600/20 text-emerald-600 dark:text-emerald-400">
+                          <span className="material-symbols-outlined text-[42px]">event</span>
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold tracking-wider uppercase border border-white/10 shadow-sm">
                           {event.eventType || 'Session'}
                         </span>
-                        <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </p>
                       </div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-2">
-                        {event.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span>
-                        {event.venueName || event.sessions?.[0]?.venueName || 'NSBM Green University'}
-                      </p>
                     </div>
 
-                    <div className="p-6 pt-0 flex gap-3">
-                      <Link to={`/events/${event.id}`} className="flex-1">
-                        <button className="w-full py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                          Details
-                        </button>
-                      </Link>
-                      <Link to="/login" className="flex-1">
-                        <button className="w-full py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">
-                          Register
-                        </button>
-                      </Link>
+                    <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                          <span className="material-symbols-outlined text-[15px] text-emerald-500">calendar_today</span>
+                          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {event.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[15px] text-rose-500">location_on</span>
+                          <span className="truncate">{event.venueName || event.sessions?.[0]?.venueName || 'NSBM Green University'}</span>
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+                        <Link to={`/events/${event.id}`} className="flex-1">
+                          <button className="w-full py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            Details
+                          </button>
+                        </Link>
+                        <Link to={user?.role === 'STUDENT' ? `/events/${event.id}` : `/login?redirect=/events/${event.id}`} className="flex-1">
+                          <button className="w-full py-2.5 px-3 text-xs font-semibold rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm">
+                            Register
+                          </button>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 );

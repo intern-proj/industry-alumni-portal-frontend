@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
 import { participationService } from '../../services/participationService';
+import { storageService } from '../../services/storageService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
@@ -98,11 +98,12 @@ export default function StudentEventDetailPage() {
           <span className="material-symbols-outlined text-[32px]">event_busy</span>
         </div>
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Event Not Found</h2>
-        <p className="text-slate-500 text-sm max-w-md mx-auto">
-          The event you are looking for does not exist or may have concluded.
+        <p className="text-sm text-slate-500 max-w-sm mx-auto">
+          The event you are trying to access does not exist or may have been cancelled.
         </p>
-        <Link to="/student/events">
-          <Button variant="primary" icon="arrow_back">Back to My Events</Button>
+        <Link to="/events" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          Explore Upcoming Events
         </Link>
       </div>
     );
@@ -114,14 +115,14 @@ export default function StudentEventDetailPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Navigation Breadcrumb / Back Button */}
+      {/* Navigation Breadcrumb Bar */}
       <div className="flex items-center justify-between">
         <Link
           to="/student/events"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Back to Events
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          My Registered Events
         </Link>
 
         {registration && (
@@ -132,7 +133,18 @@ export default function StudentEventDetailPage() {
         )}
       </div>
 
-      {/* Hero Banner Header */}
+      {/* Featured Cover Image Banner */}
+      {event.coverImage && (
+        <div className="relative aspect-[16/9] sm:aspect-[21/9] w-full rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800 bg-slate-900 group">
+          <img
+            src={storageService.getFileUrl(event.coverImage)}
+            alt={event.title}
+            className="w-full h-full object-cover object-center group-hover:scale-[1.01] transition-transform duration-500"
+          />
+        </div>
+      )}
+
+      {/* Hero Header Card */}
       <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-8 sm:p-12 shadow-xl border border-slate-800">
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -147,10 +159,10 @@ export default function StudentEventDetailPage() {
                 {event.status}
               </span>
             )}
-            {event.certificateEligible && (
-              <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1">
+            {event.requiredAttendanceRate && (
+              <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1 backdrop-blur-md">
                 <span className="material-symbols-outlined text-[14px]">workspace_premium</span>
-                Certificate Eligible
+                {event.requiredAttendanceRate}% Min. Attendance
               </span>
             )}
           </div>
@@ -202,7 +214,7 @@ export default function StudentEventDetailPage() {
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Target Audience</p>
-                  <p className="font-semibold text-white">{event.targetFaculties}</p>
+                  <p className="font-semibold text-white">{event.targetFaculties.replace(/,/g, ' • ')}</p>
                 </div>
               </div>
             )}
@@ -244,6 +256,7 @@ export default function StudentEventDetailPage() {
                 {event.sessions
                   .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
                   .map((session, sIdx) => {
+                    const sDate = session.startTime ? new Date(session.startTime) : null;
                     const sTime = session.startTime
                       ? new Date(session.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                       : '';
@@ -252,83 +265,126 @@ export default function StudentEventDetailPage() {
                       : '';
 
                     return (
-                      <div key={session.id || sIdx} className="space-y-4">
-                        {/* Session Header Card */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                      <div key={session.id || sIdx} className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-4">
+                        {/* Session Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm shrink-0">
                               {sIdx + 1}
                             </div>
                             <div>
-                              <h3 className="font-bold text-base text-slate-900 dark:text-white">{session.title}</h3>
-                              {session.venueName && (
-                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                  <span className="material-symbols-outlined text-[13px]">location_on</span>
-                                  {session.venueName}
-                                </p>
-                              )}
+                              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                                {session.title || `Session ${sIdx + 1}`}
+                              </h3>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {sDate && (
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <span className="material-symbols-outlined text-[14px] text-emerald-500">calendar_today</span>
+                                    {sDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                                {(sTime || eTime) && (
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <span className="material-symbols-outlined text-[14px] text-sky-500">schedule</span>
+                                    {sTime} {eTime ? `- ${eTime}` : ''}
+                                  </span>
+                                )}
+                                {session.venueName && (
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <span className="material-symbols-outlined text-[14px] text-rose-500">location_on</span>
+                                    {session.venueName}
+                                  </span>
+                                )}
+                                {session.capacity && (
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <span className="material-symbols-outlined text-[14px] text-purple-500">group</span>
+                                    {session.capacity} Expected
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          {(sTime || eTime) && (
-                            <span className="self-start sm:self-auto px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400">
-                              {sTime} {eTime ? `- ${eTime}` : ''}
-                            </span>
-                          )}
                         </div>
+
+                        {/* Session Description */}
+                        {session.description && (
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed pl-1">
+                            {session.description}
+                          </p>
+                        )}
+
+                        {/* Session Poster Image Preview */}
+                        {session.posterImage && (
+                          <div className="w-full sm:max-w-md h-48 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+                            <img
+                              src={storageService.getFileUrl(session.posterImage)}
+                              alt={session.title || 'Session Poster'}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
 
                         {/* Lectures Timeline within Session */}
                         {session.lectures && session.lectures.length > 0 ? (
-                          <div className="ml-5 pl-6 border-l-2 border-emerald-200 dark:border-emerald-800/40 space-y-4">
-                            {session.lectures
-                              .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
-                              .map((lecture, lIdx) => {
-                                const lTime = lecture.startTime
-                                  ? new Date(lecture.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                                  : '';
-                                return (
-                                  <div key={lecture.id || lIdx} className="relative">
-                                    {/* Timeline Bullet Node */}
-                                    <div className="absolute -left-[31px] top-3 w-3.5 h-3.5 rounded-full bg-white dark:bg-slate-900 border-2 border-emerald-500 shadow-sm" />
+                          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[14px] text-emerald-500">school</span>
+                              Lectures & Keynote Speakers
+                            </h4>
 
-                                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 transition-colors space-y-3">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                                          {lecture.title}
-                                        </h4>
-                                        {lTime && (
-                                          <span className="shrink-0 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
-                                            {lTime}
+                            <div className="space-y-3">
+                              {session.lectures
+                                .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
+                                .map((lecture, lIdx) => {
+                                  const lStart = lecture.startTime
+                                    ? new Date(lecture.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                    : '';
+                                  const lEnd = lecture.endTime
+                                    ? new Date(lecture.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                    : '';
+                                  return (
+                                    <div key={lecture.id || lIdx} className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                      <div className="space-y-1.5 flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
+                                            {lIdx + 1}
                                           </span>
+                                          <h5 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            {lecture.title}
+                                          </h5>
+                                        </div>
+
+                                        {lecture.description && (
+                                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pl-7">
+                                            {lecture.description}
+                                          </p>
                                         )}
                                       </div>
 
-                                      {lecture.description && (
-                                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                                          {lecture.description}
-                                        </p>
-                                      )}
-
-                                      {/* Guest Speaker Profile Card */}
-                                      {lecture.speakerName && (
-                                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
-                                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                                            {lecture.speakerName.charAt(0).toUpperCase()}
-                                          </div>
-                                          <div className="min-w-0">
-                                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                      <div className="flex flex-row sm:flex-col items-start sm:items-end justify-between sm:justify-center gap-2 shrink-0 pl-7 sm:pl-0">
+                                        {(lStart || lEnd) && (
+                                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-md">
+                                            {lStart} {lEnd ? `- ${lEnd}` : ''}
+                                          </span>
+                                        )}
+                                        {lecture.speakerName && (
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-[10px] flex items-center justify-center">
+                                              {lecture.speakerName.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                                               {lecture.speakerName}
-                                            </p>
-                                            <p className="text-[10px] text-slate-500">Guest Lecturer / Speaker</p>
+                                            </span>
                                           </div>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                            </div>
                           </div>
                         ) : (
-                          <div className="ml-5 pl-4 text-xs text-slate-400 italic">
+                          <div className="text-xs text-slate-400 italic pl-1">
                             Detailed topics and speakers for this session will be announced shortly.
                           </div>
                         )}
@@ -410,12 +466,12 @@ export default function StudentEventDetailPage() {
                 <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
                   <span className="material-symbols-outlined text-[16px]">groups</span>
                 </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Format & Category</h3>
-                    <p className="text-xs text-slate-500">
-                      {event.eventType || 'Event Session'}
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Format & Category</h3>
+                  <p className="text-xs text-slate-500">
+                    {event.eventType || 'Event Session'}
+                  </p>
+                </div>
               </div>
 
               {event.coordinatorName && (

@@ -268,7 +268,7 @@ export default function EventsDirectory() {
                   {/* Footer CTAs */}
                   <div className="flex items-center justify-between gap-2.5 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
                     <Link
-                      to={user?.role === 'STUDENT' ? `/student/events/${event.id}` : `/events/${event.id}`}
+                      to={`/events/${event.id}`}
                       className="flex-1"
                     >
                       <Button variant="outline" size="sm" className="w-full text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800">
