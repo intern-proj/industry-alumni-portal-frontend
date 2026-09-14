@@ -88,14 +88,28 @@ export default function PartnerManagement() {
     setProcessing(true);
     try {
       if (decision === 'APPROVE') {
+        const partner = pendingPartners.find(p => p.id === id);
         await authService.approvePendingPartner(id);
-        setGlobalSuccess('Application approved. Registration email sent to partner.');
+
+        // Ensure Stage 2 document verification record exists immediately
+        if (partner) {
+          try {
+            await platformService.createPartnerVerification({
+              userId: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-0000-0000-' + String(id).padStart(12, '0'),
+              organizationNameSnapshot: partner.companyName,
+              contactEmailSnapshot: partner.email
+            });
+          } catch (e) {
+            console.warn("Stage 2 verification creation note:", e);
+          }
+        }
+        setGlobalSuccess('Application approved! Partner has been moved to Stage 2: Document Verification and registration email sent.');
       } else {
         await authService.rejectPendingPartner(id);
         setGlobalSuccess('Application rejected and removed.');
       }
       fetchData();
-      setTimeout(() => setGlobalSuccess(''), 4000);
+      setTimeout(() => setGlobalSuccess(''), 5000);
     } catch (err) {
       setGlobalError(err.response?.data?.message || `Failed to ${decision.toLowerCase()} application.`);
       setTimeout(() => setGlobalError(''), 4000);

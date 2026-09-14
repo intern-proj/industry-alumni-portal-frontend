@@ -22,6 +22,9 @@ export const platformService = {
   adminEditPartnerVerification: (id, data) =>
     api.patch(`/admin/partner-verifications/${id}`, data),
 
+  createPartnerVerification: (data) =>
+    api.post('/internal/partner-verifications', data),
+
   getMyVerificationStatus: () =>
     api.get('/partner-verifications/me'),
 
