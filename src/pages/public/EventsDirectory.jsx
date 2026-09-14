@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
 import { participationService } from '../../services/participationService';
+import { storageService } from '../../services/storageService';
 import { useAuth } from '../../contexts/AuthContext';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+
+const EVENT_CATEGORIES = ['ALL', 'WORKSHOP', 'HACKATHON', 'GUEST LECTURE', 'SEMINAR', 'INDUSTRY MEETUP'];
 
 export default function EventsDirectory() {
   const { user } = useAuth();
@@ -16,10 +19,11 @@ export default function EventsDirectory() {
   const [registeringId, setRegisteringId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('q') || '');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   useEffect(() => {
     setLoading(true);
-    eventService.getEvents({ search: searchParams.get('q'), size: 20 })
+    eventService.getEvents({ search: searchParams.get('q'), size: 50 })
       .then((res) => {
         let fetched = [];
         if (Array.isArray(res.data)) fetched = res.data;
@@ -65,18 +69,33 @@ export default function EventsDirectory() {
     setSearchParams(query ? { q: query } : {});
   }
 
+  // Filter events by selected category
+  const filteredEvents = useMemo(() => {
+    if (selectedCategory === 'ALL') return events;
+    return events.filter((e) => {
+      const type = (e.eventType || '').toUpperCase();
+      return type.includes(selectedCategory);
+    });
+  }, [events, selectedCategory]);
+
   return (
-    <div className="max-w-7xl mx-auto px-6 sm:px-8 py-10 space-y-10">
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 text-white rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-xl shadow-sky-500/10">
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs font-bold text-white uppercase tracking-wider">
-            <span className="material-symbols-outlined text-sm">event_available</span>
-            Knowledge & Industry Sessions
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+      {/* Hero Banner with Executive Glassmorphism & Key Highlights */}
+      <div className="relative rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-8 sm:p-12 overflow-hidden shadow-2xl border border-indigo-900/40">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-3xl space-y-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-indigo-300 uppercase tracking-widest border border-white/10">
+            <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
+            Official Institutional Events & Symposia
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Industry Workshops & Events</h1>
-          <p className="text-sm sm:text-base text-white/90 leading-relaxed">
-            Discover upcoming tech symposiums, industry panels, and hands-on masterclasses hosted at NSBM Green University.
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            Industry Collaboration <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400">
+              Workshops & Masterclasses
+            </span>
+          </h1>
+          <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
+            Gain verified industry exposure through faculty-endorsed career symposiums, hackathons, and guest masterclasses hosted in partnership with leading global corporate employers.
           </p>
 
           <div className="pt-2 max-w-2xl">
@@ -84,115 +103,209 @@ export default function EventsDirectory() {
               value={search}
               onSearch={handleSearch}
               onChange={(val) => handleSearch(val)}
-              placeholder="Search events by title, topic, or venue..."
+              placeholder="Search by topic, speaker, faculty, or title..."
               showAiToggle={false}
               loading={loading}
             />
           </div>
         </div>
+
+        {/* Quick Highlights Counters */}
+        <div className="relative z-10 mt-8 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <p className="text-2xl font-black text-white">{events.length}</p>
+            <p className="text-xs text-slate-400 font-medium">Scheduled Events</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black text-emerald-400">100%</p>
+            <p className="text-xs text-slate-400 font-medium">Verified Speakers</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black text-sky-400">Direct</p>
+            <p className="text-xs text-slate-400 font-medium">Student Registration</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black text-indigo-300">Certified</p>
+            <p className="text-xs text-slate-400 font-medium">Attendance Records</p>
+          </div>
+        </div>
       </div>
 
-      {/* Events List */}
+      {/* Category Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Filter:</span>
+        {EVENT_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all shrink-0 capitalize ${
+              selectedCategory === cat
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            {cat === 'ALL' ? 'All Events' : cat.toLowerCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* Events Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-slate-400">Loading scheduled sessions...</span>
+        <div className="flex flex-col items-center justify-center py-28 gap-3">
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin shadow-lg shadow-emerald-500/20" />
+          <span className="text-xs text-slate-400 font-medium">Loading session schedules & speakers...</span>
         </div>
-      ) : events.length === 0 ? (
-        <Card className="text-center py-16">
-          <CardContent className="space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-[32px]">event_busy</span>
+      ) : filteredEvents.length === 0 ? (
+        <Card className="text-center py-20 rounded-3xl border-dashed">
+          <CardContent className="space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+              <span className="material-symbols-outlined text-[36px]">event_busy</span>
             </div>
-            <h3 className="text-slate-800 dark:text-slate-200 text-base font-bold">No Events Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">Check back later for newly announced sessions and industrial symposiums.</p>
+            <h3 className="text-slate-900 dark:text-slate-100 text-lg font-bold">No Events Found</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              {search || selectedCategory !== 'ALL'
+                ? 'No scheduled sessions match your current filter criteria. Try clearing filters.'
+                : 'Check back later for newly announced sessions and industrial symposiums.'}
+            </p>
+            {(search || selectedCategory !== 'ALL') && (
+              <Button size="sm" variant="outline" onClick={() => { setSearch(''); setSelectedCategory('ALL'); setSearchParams({}); }}>
+                Clear Filters
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.length === 0 ? (
-              <div className="col-span-full p-16 text-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800">
-                No events found matching your search.
-              </div>
-            ) : (
-              events.map((event) => {
-                const date = new Date(event.startDateTime || Date.now());
-                return (
-                  <Card key={event.id} className="hover:border-emerald-500/40 hover:shadow-sm transition-all border border-slate-200 dark:border-slate-800 flex flex-col">
-                    <CardContent className="p-4 flex flex-col h-full gap-3">
-                      <div className="flex items-start gap-3">
-                        {/* Calendar Date Icon Box */}
-                        <div className="shrink-0 text-center w-12 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                          <p className="text-sm font-black text-sky-600 dark:text-sky-400">{date.getDate()}</p>
-                          <p className="text-[8px] font-bold text-slate-500 uppercase">{date.toLocaleDateString('en-US', { month: 'short' })}</p>
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-2">{event.title}</h3>
-                        </div>
-                      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((event) => {
+            const date = new Date(event.startDateTime || Date.now());
+            const isRegistered = registeredEventIds.has(String(event.id));
+            const isLive = event.status === 'ONGOING';
 
-                      <div className="flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant="info" className="text-[8px] px-1.5 py-0">{event.eventType || 'SESSION'}</Badge>
-                          {event.status && <Badge variant="success" className="text-[8px] px-1.5 py-0">{event.status}</Badge>}
-                          {event.certificateEligible && (
-                            <Badge variant="placed" className="text-[8px] px-1.5 py-0 flex items-center gap-0.5">
-                              <span className="material-symbols-outlined text-[10px]">workspace_premium</span>
-                              CERT
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <p className="text-[10px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">{event.description}</p>
-                        
-                        <div className="flex flex-col gap-1 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
-                          <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
-                            <span>{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          {event.venueName && (
-                            <div className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[12px] text-slate-400">location_on</span>
-                              <span className="truncate">{event.venueName}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+            return (
+              <Card
+                key={event.id}
+                className="group overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300 flex flex-col bg-white dark:bg-slate-900"
+              >
+                {/* 16:9 Cover Image / Dynamic Fallback Header */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  {event.coverImage ? (
+                    <img
+                      src={storageService.getFileUrl(event.coverImage)}
+                      alt={event.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+                      <span className="material-symbols-outlined text-slate-500 text-5xl opacity-40">
+                        {event.eventType?.toLowerCase().includes('hack') ? 'terminal' :
+                         event.eventType?.toLowerCase().includes('speaker') || event.eventType?.toLowerCase().includes('lecture') ? 'record_voice_over' :
+                         event.eventType?.toLowerCase().includes('career') ? 'work' : 'school'}
+                      </span>
+                    </div>
+                  )}
 
-                      <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <Link to={user?.role === 'STUDENT' ? `/student/events/${event.id}` : `/events/${event.id}`} className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full text-[10px] h-6 px-2">Details</Button>
-                        </Link>
-                        {user?.role === 'STUDENT' ? (
-                          registeredEventIds.has(String(event.id)) ? (
-                            <span className="flex-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-center py-1 rounded">
-                              Joined
-                            </span>
-                          ) : (
-                            <Button
-                              size="sm"
-                              className="flex-1 text-[10px] h-6 px-2 bg-emerald-600 hover:bg-emerald-700"
-                              icon="how_to_reg"
-                              loading={registeringId === event.id}
-                              onClick={() => handleQuickRegister(event)}
-                            >
-                              Register
-                            </Button>
-                          )
-                        ) : (
-                          <Link to="/login" className="flex-1">
-                            <Button size="sm" className="w-full text-[10px] h-6 px-2 bg-sky-600 hover:bg-sky-700" icon="login">Join</Button>
-                          </Link>
-                        )}
+                  {/* Floating Date Badge (Glassmorphic) */}
+                  <div className="absolute top-3 left-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl p-2 text-center shadow-md border border-white/20 min-w-[50px]">
+                    <span className="block text-[10px] font-black uppercase text-rose-500 tracking-wider">
+                      {date.toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
+                    <span className="block text-lg font-black text-slate-900 dark:text-white leading-none mt-0.5">
+                      {date.getDate()}
+                    </span>
+                  </div>
+
+                  {/* Top-Right Badges */}
+                  <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-md backdrop-blur-md bg-slate-900/80 text-white border border-white/10">
+                      {event.eventType || 'Workshop'}
+                    </span>
+                    {isLive && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white uppercase shadow-md animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                        Live Now
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Content Body */}
+                <CardContent className="p-5 flex flex-col flex-1 gap-3">
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white leading-snug line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {event.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {event.description || 'Join this session for direct insights from verified industrial mentors.'}
+                    </p>
+                  </div>
+
+                  {/* Key Event Metadata */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[16px] text-slate-400 shrink-0">schedule</span>
+                      <span className="font-medium">
+                        {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {event.endDateTime && ` – ${new Date(event.endDateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[16px] text-slate-400 shrink-0">location_on</span>
+                      <span className="font-medium truncate">{event.venueName || 'Campus Main Auditorium'}</span>
+                    </div>
+
+                    {event.targetFaculties && (
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-slate-400 shrink-0">domain</span>
+                        <span className="font-medium text-[11px] truncate text-slate-500">
+                          {event.targetFaculties.replace(/,/g, ' • ')}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
+                    )}
+                  </div>
+
+                  {/* Footer CTAs */}
+                  <div className="flex items-center justify-between gap-2.5 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Link
+                      to={user?.role === 'STUDENT' ? `/student/events/${event.id}` : `/events/${event.id}`}
+                      className="flex-1"
+                    >
+                      <Button variant="outline" size="sm" className="w-full text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800">
+                        View Details
+                      </Button>
+                    </Link>
+
+                    {user?.role === 'STUDENT' ? (
+                      isRegistered ? (
+                        <div className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-center gap-1">
+                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                          Registered
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          className="flex-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700"
+                          icon="how_to_reg"
+                          loading={registeringId === event.id}
+                          onClick={() => handleQuickRegister(event)}
+                        >
+                          Register
+                        </Button>
+                      )
+                    ) : (
+                      <Link to="/login" className="flex-1">
+                        <Button size="sm" variant="primary" className="w-full text-xs font-semibold bg-sky-600 hover:bg-sky-700" icon="login">
+                          Join
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -24,6 +24,7 @@ export default function CreateEvent() {
     description: '',
     coverImage: '',
     eventType: 'Workshop',
+    status: 'SCHEDULED',
     targetFaculties: [],
     startDateTime: '',
     endDateTime: '',
@@ -230,7 +231,14 @@ export default function CreateEvent() {
                 <label className="text-sm font-medium text-slate-900 dark:text-white">End Date & Time</label>
                 <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Publishing Status *</label>
+                <Select name="status" value={eventData.status} onChange={handleEventChange}>
+                  <option value="SCHEDULED">Scheduled / Published (Visible to Students)</option>
+                  <option value="DRAFT">Draft (Staff Only, Work in Progress)</option>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Required Attendance Rate (%)</label>
                 <Input type="number" name="requiredAttendanceRate" placeholder="e.g. 80" min="0" max="100" value={eventData.requiredAttendanceRate} onChange={handleEventChange} />
               </div>
@@ -427,10 +435,29 @@ export default function CreateEvent() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
           <Button type="button" variant="ghost" onClick={() => navigate('/staff/events')}>Cancel</Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Event'}
+          <Button 
+            type="button" 
+            variant="outline" 
+            disabled={loading}
+            onClick={(e) => {
+              setEventData((prev) => ({ ...prev, status: 'DRAFT' }));
+              setTimeout(() => {
+                const form = document.querySelector('form');
+                if (form.reportValidity()) handleSubmit(e, 'DRAFT');
+              }, 50);
+            }}
+          >
+            Save as Draft
+          </Button>
+          <Button 
+            type="submit" 
+            variant="primary" 
+            disabled={loading}
+            onClick={() => setEventData((prev) => ({ ...prev, status: prev.status === 'DRAFT' ? 'SCHEDULED' : prev.status }))}
+          >
+            {loading ? 'Processing...' : eventData.status === 'DRAFT' ? 'Save as Draft' : 'Publish & Schedule Event'}
           </Button>
         </div>
       </form>

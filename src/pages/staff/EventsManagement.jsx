@@ -35,17 +35,46 @@ export default function EventsManagement() {
     loadData();
   }, [loadData]);
 
+  const filteredEvents = events.filter((e) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      (e.title && e.title.toLowerCase().includes(q)) ||
+      (e.eventType && e.eventType.toLowerCase().includes(q)) ||
+      (e.venueName && e.venueName.toLowerCase().includes(q));
+
+    const s = (e.status || 'DRAFT').toUpperCase();
+    const matchesStatus = statusFilter === 'ALL' || 
+      s === statusFilter.toUpperCase() ||
+      (statusFilter === 'SCHEDULED' && s === 'PUBLISHED');
+
+    return matchesSearch && matchesStatus;
+  });
+
   const eventColumns = [
     { key: 'title', header: 'Event Title', render: (row) => <span className="font-semibold text-slate-900 dark:text-white">{row.title}</span> },
-    { key: 'eventType', header: 'Type', render: (row) => <Badge variant="info">{row.eventType}</Badge> },
+    { key: 'eventType', header: 'Type', render: (row) => <Badge variant="info">{row.eventType || 'Workshop'}</Badge> },
     { key: 'startDateTime', header: 'Date & Time', render: (row) => new Date(row.startDateTime || Date.now()).toLocaleDateString() },
     { key: 'venueName', header: 'Venue', render: (row) => row.venueName || 'NSBM Auditorium' },
     {
       key: 'status',
       header: 'Status',
       render: (row) => {
-        const variant = row.status === 'PUBLISHED' ? 'success' : row.status === 'COMPLETED' ? 'placed' : 'neutral';
-        return <Badge variant={variant}>{row.status || 'DRAFT'}</Badge>;
+        const s = (row.status || 'DRAFT').toUpperCase();
+        const badgeConfig = {
+          SCHEDULED: { variant: 'info', label: 'Scheduled', icon: 'schedule' },
+          PUBLISHED: { variant: 'success', label: 'Published', icon: 'check_circle' },
+          ONGOING: { variant: 'success', label: 'Live Now', icon: 'play_circle' },
+          COMPLETED: { variant: 'placed', label: 'Completed', icon: 'task_alt' },
+          CANCELLED: { variant: 'danger', label: 'Cancelled', icon: 'cancel' },
+          DRAFT: { variant: 'neutral', label: 'Draft', icon: 'edit_note' },
+        }[s] || { variant: 'neutral', label: s, icon: 'info' };
+
+        return (
+          <Badge variant={badgeConfig.variant} className="inline-flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px]">{badgeConfig.icon}</span>
+            {badgeConfig.label}
+          </Badge>
+        );
       }
     },
   ];
@@ -72,19 +101,21 @@ export default function EventsManagement() {
 
       <Card>
         <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle>Event Schedules</CardTitle>
+          <CardTitle>Event Schedules ({filteredEvents.length})</CardTitle>
           <div className="flex flex-wrap gap-3 w-full sm:w-auto">
             <Input 
-              placeholder="Search events..." 
+              placeholder="Search by title, type, or venue..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-64" 
             />
             <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="ALL">All Statuses</option>
-              <option value="PUBLISHED">Published</option>
+              <option value="SCHEDULED">Scheduled / Published</option>
+              <option value="ONGOING">Ongoing (Live)</option>
               <option value="DRAFT">Draft</option>
               <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
             </Select>
           </div>
         </CardHeader>
@@ -94,7 +125,7 @@ export default function EventsManagement() {
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <DataTable columns={eventColumns} data={events} onRowClick={(row) => navigate(`/staff/events/${row.id}`)} />
+            <DataTable columns={eventColumns} data={filteredEvents} onRowClick={(row) => navigate(`/staff/events/${row.id}`)} />
           )}
         </CardContent>
       </Card>

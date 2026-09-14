@@ -26,6 +26,7 @@ export default function EditEvent() {
     description: '',
     coverImage: '',
     eventType: 'Workshop',
+    status: 'SCHEDULED',
     targetFaculties: [],
     startDateTime: '',
     endDateTime: '',
@@ -58,6 +59,7 @@ export default function EditEvent() {
           description: ev.description || '',
           coverImage: ev.coverImage || '',
           eventType: ev.eventType || 'Workshop',
+          status: ev.status || 'SCHEDULED',
           targetFaculties: ev.targetFaculties ? ev.targetFaculties.split(',') : [],
           startDateTime: ev.startDateTime ? ev.startDateTime.substring(0, 16) : '',
           endDateTime: ev.endDateTime ? ev.endDateTime.substring(0, 16) : '',
@@ -212,6 +214,9 @@ export default function EditEvent() {
       };
 
       await eventService.updateEvent(id, payload);
+      if (eventData.status) {
+        await eventService.updateEventStatus(id, eventData.status).catch(() => {});
+      }
       navigate(`/staff/events/${id}`);
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Failed to update event. Please try again.');
@@ -279,7 +284,17 @@ export default function EditEvent() {
                 <label className="text-sm font-medium text-slate-900 dark:text-white">End Date & Time</label>
                 <Input type="datetime-local" name="endDateTime" value={eventData.endDateTime} onChange={handleEventChange} />
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-900 dark:text-white">Event Status *</label>
+                <Select name="status" value={eventData.status} onChange={handleEventChange}>
+                  <option value="SCHEDULED">Scheduled / Published (Live to Students)</option>
+                  <option value="DRAFT">Draft (Staff Only, Work in Progress)</option>
+                  <option value="ONGOING">Ongoing / In Progress (Live Now)</option>
+                  <option value="COMPLETED">Completed (Archived Session)</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-900 dark:text-white">Required Attendance Rate (%)</label>
                 <Input type="number" name="requiredAttendanceRate" placeholder="e.g. 80" min="0" max="100" value={eventData.requiredAttendanceRate} onChange={handleEventChange} />
               </div>

@@ -19,6 +19,7 @@ export default function EventDetailManagement() {
   const [qrSessionData, setQrSessionData] = useState(null); // { title, qrUrl }
   const [qrLoading, setQrLoading] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     loadEventDetails();
@@ -28,11 +29,38 @@ export default function EventDetailManagement() {
     setLoading(true);
     try {
       const res = await eventService.getEventById(id);
-      setEvent(res.data);
+      setEvent(res.data?.data || res.data);
     } catch (err) {
       setErrorMsg('Failed to load event details.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!newStatus || newStatus === event.status) return;
+    setUpdatingStatus(true);
+    try {
+      await eventService.updateEventStatus(id, newStatus);
+      setEvent((prev) => ({ ...prev, status: newStatus }));
+      if (window.toast) {
+        window.toast.success(`Event status transitioned to ${newStatus}!`);
+      }
+    } catch (err) {
+      console.warn('Direct status transition rejected, falling back to updateEvent PUT:', err);
+      try {
+        await eventService.updateEvent(id, { ...event, status: newStatus });
+        setEvent((prev) => ({ ...prev, status: newStatus }));
+        if (window.toast) {
+          window.toast.success(`Event status updated to ${newStatus}!`);
+        }
+      } catch (fallbackErr) {
+        if (window.toast) {
+          window.toast.error(err.response?.data?.message || 'Failed to update event status.');
+        }
+      }
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -108,6 +136,105 @@ export default function EventDetailManagement() {
             <span className="material-symbols-outlined text-[18px]">edit</span>
             Edit Event
           </Button>
+        </div>
+      </div>
+
+      {/* Interactive Status & Publishing Workflow Bar */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+            <span className="material-symbols-outlined text-[22px]">tune</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Publishing Lifecycle:</span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                event.status === 'SCHEDULED' || event.status === 'PUBLISHED' ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300' :
+                event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' :
+                event.status === 'COMPLETED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' :
+                event.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' :
+                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              }`}>
+                {event.status === 'ONGOING' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />}
+                {event.status || 'DRAFT'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {event.status === 'SCHEDULED' || event.status === 'PUBLISHED' ? 'Visible to students and open for registrations in the portal.' :
+               event.status === 'DRAFT' ? 'Hidden draft. Only visible to staff. Publish when ready.' :
+               event.status === 'ONGOING' ? 'Session currently live on campus.' :
+               event.status === 'COMPLETED' ? 'Event completed. Attendance records and certificates ready.' :
+               'This event has been marked as cancelled.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {event.status === 'DRAFT' && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon="publish"
+              loading={updatingStatus}
+              onClick={() => handleStatusChange('SCHEDULED')}
+              className="bg-sky-600 hover:bg-sky-700 text-xs"
+            >
+              Publish Event
+            </Button>
+          )}
+
+          {(event.status === 'SCHEDULED' || event.status === 'PUBLISHED') && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                icon="play_circle"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('ONGOING')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-xs"
+              >
+                Mark Live / Ongoing
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('DRAFT')}
+                className="text-xs"
+              >
+                Revert to Draft
+              </Button>
+            </>
+          )}
+
+          {event.status === 'ONGOING' && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon="check_circle"
+              loading={updatingStatus}
+              onClick={() => handleStatusChange('COMPLETED')}
+              className="bg-purple-600 hover:bg-purple-700 text-xs"
+            >
+              Mark Completed
+            </Button>
+          )}
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 font-medium">Set:</span>
+            <select
+              value={event.status || 'DRAFT'}
+              disabled={updatingStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="ONGOING">Ongoing</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
         </div>
       </div>
 
