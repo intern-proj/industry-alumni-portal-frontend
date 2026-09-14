@@ -110,25 +110,7 @@ export default function EventsDirectory() {
           </div>
         </div>
 
-        {/* Quick Highlights Counters */}
-        <div className="relative z-10 mt-8 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-2xl font-black text-white">{events.length}</p>
-            <p className="text-xs text-slate-400 font-medium">Scheduled Events</p>
-          </div>
-          <div>
-            <p className="text-2xl font-black text-emerald-400">100%</p>
-            <p className="text-xs text-slate-400 font-medium">Verified Speakers</p>
-          </div>
-          <div>
-            <p className="text-2xl font-black text-sky-400">Direct</p>
-            <p className="text-xs text-slate-400 font-medium">Student Registration</p>
-          </div>
-          <div>
-            <p className="text-2xl font-black text-indigo-300">Certified</p>
-            <p className="text-xs text-slate-400 font-medium">Attendance Records</p>
-          </div>
-        </div>
+
       </div>
 
       {/* Category Filter Pills */}
