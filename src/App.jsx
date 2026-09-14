@@ -39,6 +39,7 @@ import StudentCompanies from './pages/student/StudentCompanies';
 import StudentCompanyDetailPage from './pages/student/StudentCompanyDetailPage';
 import JobApplicationSubmissionPage from './pages/student/JobApplicationSubmissionPage';
 import JobApplicationDetailsPage from './pages/student/JobApplicationDetailsPage';
+import EventFeedbackForm from './pages/student/EventFeedbackForm';
 
 // Partner Pages
 import PartnerDashboard from './pages/partner/PartnerDashboard';
@@ -65,6 +66,7 @@ import PartnerManagement from './pages/staff/PartnerManagement';
 import VacancyApprovalsQueue from './pages/staff/VacancyApprovalsQueue';
 import ReportsAnalytics from './pages/staff/ReportsAnalytics';
 import SystemAuditLogs from './pages/staff/SystemAuditLogs';
+import EventQrScanner from './pages/staff/EventQrScanner';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -131,6 +133,7 @@ function App() {
           >
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="events" element={<MyEvents />} />
+            <Route path="events/:id/feedback" element={<EventFeedbackForm />} />
             <Route path="certificates" element={<MyCertificates />} />
             <Route path="vacancies" element={<VacancyPortal />} />
             <Route path="vacancies/:id" element={<JobPostDetailPage />} />
@@ -178,6 +181,7 @@ function App() {
             <Route path="dashboard" element={<StaffDashboard />} />
             <Route path="events" element={<EventsManagement />} />
             <Route path="events/:id" element={<EventDetailManagement />} />
+            <Route path="events/:id/scan" element={<EventQrScanner />} />
             <Route path="events/create" element={<CreateEvent />} />
             <Route path="events/:id/edit" element={<EditEvent />} />
             <Route path="venues" element={<VenuesManagement />} />
