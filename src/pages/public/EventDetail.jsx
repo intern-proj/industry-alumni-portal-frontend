@@ -1,18 +1,53 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
+import { participationService } from '../../services/participationService';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/ui/Button';
 
 export default function EventDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [registration, setRegistration] = useState(null);
+  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
     eventService.getEventById(id)
       .then((res) => setEvent(res.data))
       .catch(() => setEvent(null))
       .finally(() => setLoading(false));
-  }, [id]);
+
+    if (user?.id) {
+      participationService.getRegistrations({ eventId: id, userId: user.id })
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.content) ? res.data.content : [];
+          const found = list.find((r) => String(r.eventId) === String(id)) || (list.length > 0 ? list[0] : null);
+          setRegistration(found);
+        })
+        .catch(() => setRegistration(null));
+    }
+  }, [id, user?.id]);
+
+  const handleRegister = async () => {
+    if (!user?.id) return;
+    setRegistering(true);
+    try {
+      const res = await participationService.registerForEvent({
+        eventId: String(id),
+        studentId: String(user.id),
+        eventTitle: event?.title || 'Event Session',
+        venueName: event?.venueName || 'Campus Main Hall',
+      });
+      setRegistration(res.data);
+      if (window.toast) window.toast.success('Successfully registered for this event!');
+    } catch {
+      if (window.toast) window.toast.error('Failed to register. Please try again.');
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -226,10 +261,39 @@ export default function EventDetail() {
               Reserve your spot to gain valuable industry insights and network with professionals.
             </p>
             
-            <Link to="/login" className="flex items-center justify-center w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] transition-all text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-emerald-500/25">
-              Sign In to Register
-              <span className="material-symbols-outlined text-[20px]">login</span>
-            </Link>
+            {user?.role === 'STUDENT' ? (
+              registration ? (
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[18px]">verified</span>
+                    You Are Registered
+                  </div>
+                  <Link
+                    to={`/student/events/${id}`}
+                    className="flex items-center justify-center w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs shadow-md shadow-emerald-600/20"
+                  >
+                    View in Student Portal
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </Link>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon="how_to_reg"
+                  className="w-full justify-center py-3.5 text-sm shadow-md shadow-emerald-500/25"
+                  loading={registering}
+                  onClick={handleRegister}
+                >
+                  {registering ? 'Registering...' : 'Register for Event'}
+                </Button>
+              )
+            ) : (
+              <Link to="/login" className="flex items-center justify-center w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] transition-all text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-emerald-500/25">
+                Sign In to Register
+                <span className="material-symbols-outlined text-[20px]">login</span>
+              </Link>
+            )}
 
             <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
               <div className="flex items-start gap-3">

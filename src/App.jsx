@@ -30,6 +30,7 @@ import PartnerRegistrationCompletion from './pages/auth/PartnerRegistrationCompl
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
 import MyEvents from './pages/student/MyEvents';
+import StudentEventDetailPage from './pages/student/StudentEventDetailPage';
 import MyCertificates from './pages/student/MyCertificates';
 import VacancyPortal from './pages/student/VacancyPortal';
 import MyApplications from './pages/student/MyApplications';
@@ -131,6 +132,7 @@ function App() {
           >
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="events" element={<MyEvents />} />
+            <Route path="events/:id" element={<StudentEventDetailPage />} />
             <Route path="certificates" element={<MyCertificates />} />
             <Route path="vacancies" element={<VacancyPortal />} />
             <Route path="vacancies/:id" element={<JobPostDetailPage />} />

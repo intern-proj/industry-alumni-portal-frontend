@@ -261,7 +261,7 @@ export default function StudentDashboard() {
             <div className="p-8 text-center">
               <span className="material-symbols-outlined text-slate-400 text-[36px]">event_busy</span>
               <p className="font-body-base text-body-base text-slate-400 mt-2">No event registrations yet.</p>
-              <Link to="/events" className="btn-outline h-8 text-[12px] mt-3 inline-flex">Browse Events</Link>
+              <Link to="/student/events" className="btn-outline h-8 text-[12px] mt-3 inline-flex">Explore Upcoming Events</Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -269,8 +269,16 @@ export default function StudentDashboard() {
                 <thead><tr><th>Event Name</th><th>Date</th><th>Status</th></tr></thead>
                 <tbody>
                   {registrations.slice(0, 5).map((reg) => (
-                    <tr key={reg.id}>
-                      <td className="font-medium text-slate-900 dark:text-white">{reg.eventTitle || reg.eventId}</td>
+                    <tr
+                      key={reg.registrationId || reg.id}
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                      onClick={() => navigate(`/student/events/${reg.eventId}`)}
+                      title="Click to view full event schedule and details"
+                    >
+                      <td className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                        <span className="material-symbols-outlined text-emerald-500 text-[16px]">event</span>
+                        {reg.eventTitle || `Event #${reg.eventId}`}
+                      </td>
                       <td className="text-slate-600 dark:text-slate-400">{new Date(reg.registeredAt || Date.now()).toLocaleDateString()}</td>
                       <td><span className="badge-success text-[10px]">{reg.status || 'REGISTERED'}</span></td>
                     </tr>

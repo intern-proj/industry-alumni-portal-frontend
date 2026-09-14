@@ -121,7 +121,7 @@ export default function StudentProfile() {
             const resRes = await userService.getResumesByUserId(userId);
             const resList = resRes.data?.data || resRes.data || [];
             const primaryResume = resList.find((r) => r.isPrimary) || resList[0];
-            if (primaryResume?.fileUrl && primaryResume.fileUrl.startsWith('http')) {
+            if (primaryResume?.fileUrl || primaryResume?.storageFileId) {
               triggerAutoEnhance(primaryResume, loadedProfile);
             }
           } catch (e) {
@@ -251,22 +251,39 @@ export default function StudentProfile() {
 
   const triggerAutoEnhance = async (primaryResume, currentProfile) => {
     try {
-      const aiRes = await aiService.enhanceProfileFromResume(userId, primaryResume.fileUrl, skills);
+      let fileUrl = primaryResume.fileUrl;
+      if (!fileUrl || fileUrl === '#' || !fileUrl.startsWith('http')) {
+        if (primaryResume.storageFileId) {
+          fileUrl = storageService.getFileDownloadUrl(primaryResume.storageFileId, true);
+        }
+      }
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        return;
+      }
+
+      const aiRes = await aiService.enhanceProfileFromResume(userId, fileUrl, skills);
       const data = aiRes.data;
       if (data && data.status === 'success') {
         const newProjects = Array.isArray(data.projects) ? data.projects : [];
         const incomingSkills = Array.isArray(data.skills) ? data.skills : [];
         if (newProjects.length > 0 || incomingSkills.length > 0 || data.bio) {
           setProjects(newProjects);
-          if (data.bio) {
-            setProfile((prev) => ({ ...prev, bio: data.bio }));
+          const newHeadline = currentProfile?.headline || profile.headline || (data.target_roles?.[0] || '');
+          if (data.bio || newHeadline) {
+            setProfile((prev) => ({
+              ...prev,
+              bio: data.bio || prev.bio,
+              headline: newHeadline || prev.headline,
+            }));
           }
           if (incomingSkills.length > 0) {
             setSkills((prev) => Array.from(new Set([...prev, ...incomingSkills])));
           }
 
           const { firstName, lastName } = parseFullName(
-            currentProfile?.fullName || currentProfile?.firstName
+            data.candidate_name ||
+            currentProfile?.fullName ||
+            currentProfile?.firstName
               ? `${currentProfile.firstName || ''} ${currentProfile.lastName || ''}`.trim()
               : (user?.username || 'Student')
           );
@@ -277,7 +294,7 @@ export default function StudentProfile() {
             lastName,
             email: currentProfile?.email || currentProfile?.personalEmail || user?.email || 'student@students.nsbm.ac.lk',
             phone: currentProfile?.phone || currentProfile?.phoneNumber || '',
-            headline: currentProfile?.headline || profile.headline || '',
+            headline: newHeadline,
             bio: data.bio || currentProfile?.bio || '',
             linkedinUrl: currentProfile?.linkedinUrl || profile.linkedInUrl || '',
             githubUrl: currentProfile?.githubUrl || profile.githubUrl || '',
@@ -404,21 +421,38 @@ export default function StudentProfile() {
         return;
       }
 
-      const aiRes = await aiService.enhanceProfileFromResume(userId, primaryResume.fileUrl, skills);
+      let fileUrl = primaryResume.fileUrl;
+      if (!fileUrl || fileUrl === '#' || !fileUrl.startsWith('http')) {
+        if (primaryResume.storageFileId) {
+          fileUrl = storageService.getFileDownloadUrl(primaryResume.storageFileId, true);
+        }
+      }
+
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        setErrorMsg('Could not find a valid download link for your primary resume.');
+        setEnhancing(false);
+        return;
+      }
+
+      const aiRes = await aiService.enhanceProfileFromResume(userId, fileUrl, skills);
       const data = aiRes.data;
 
       if (data && data.status === 'success') {
         const newProjects = Array.isArray(data.projects) ? data.projects : [];
         const incomingSkills = Array.isArray(data.skills) ? data.skills : [];
         const mergedSkills = Array.from(new Set([...skills, ...incomingSkills]));
+        const newHeadline = profile.headline || (data.target_roles?.[0] || '');
 
         setProjects(newProjects);
         setSkills(mergedSkills);
-        if (data.bio) {
-          setProfile((prev) => ({ ...prev, bio: data.bio }));
-        }
+        setProfile((prev) => ({
+          ...prev,
+          bio: data.bio || prev.bio,
+          headline: newHeadline || prev.headline,
+          fullName: data.candidate_name || prev.fullName,
+        }));
 
-        const { firstName, lastName } = parseFullName(profile.fullName || user?.username || 'Student');
+        const { firstName, lastName } = parseFullName(data.candidate_name || profile.fullName || user?.username || 'Student');
         const email = profile.personalEmail || user?.email || 'student@students.nsbm.ac.lk';
 
         // Persist immediately to user-profile backend
@@ -428,7 +462,7 @@ export default function StudentProfile() {
           lastName,
           email,
           phone: profile.phoneNumber || '',
-          headline: profile.headline || '',
+          headline: newHeadline,
           bio: data.bio || profile.bio || '',
           linkedinUrl: profile.linkedInUrl || '',
           githubUrl: profile.githubUrl || '',

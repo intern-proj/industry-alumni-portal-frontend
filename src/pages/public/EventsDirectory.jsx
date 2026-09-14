@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
+import { participationService } from '../../services/participationService';
+import { useAuth } from '../../contexts/AuthContext';
 import SmartAISearchBar from '../../components/common/SmartAISearchBar';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 export default function EventsDirectory() {
+  const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [registeredEventIds, setRegisteredEventIds] = useState(new Set());
+  const [registeringId, setRegisteringId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('q') || '');
 
@@ -25,7 +30,35 @@ export default function EventsDirectory() {
       })
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
-  }, [searchParams]);
+
+    if (user?.id) {
+      participationService.getRegistrations({ userId: user.id })
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.content) ? res.data.content : [];
+          setRegisteredEventIds(new Set(list.map((r) => String(r.eventId))));
+        })
+        .catch(() => setRegisteredEventIds(new Set()));
+    }
+  }, [searchParams, user?.id]);
+
+  const handleQuickRegister = async (event) => {
+    if (!user?.id) return;
+    setRegisteringId(event.id);
+    try {
+      await participationService.registerForEvent({
+        eventId: String(event.id),
+        studentId: String(user.id),
+        eventTitle: event.title,
+        venueName: event.venueName || 'Campus Main Hall',
+      });
+      setRegisteredEventIds((prev) => new Set([...prev, String(event.id)]));
+      if (window.toast) window.toast.success(`Registered for "${event.title}"!`);
+    } catch {
+      if (window.toast) window.toast.error('Failed to register. Please try again.');
+    } finally {
+      setRegisteringId(null);
+    }
+  };
 
   function handleSearch(query) {
     setSearch(query);
@@ -129,12 +162,30 @@ export default function EventsDirectory() {
                       </div>
 
                       <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <Link to={`/events/${event.id}`} className="flex-1">
+                        <Link to={user?.role === 'STUDENT' ? `/student/events/${event.id}` : `/events/${event.id}`} className="flex-1">
                           <Button variant="outline" size="sm" className="w-full text-[10px] h-6 px-2">Details</Button>
                         </Link>
-                        <Link to="/login" className="flex-1">
-                          <Button size="sm" className="w-full text-[10px] h-6 px-2 bg-sky-600 hover:bg-sky-700" icon="login">Join</Button>
-                        </Link>
+                        {user?.role === 'STUDENT' ? (
+                          registeredEventIds.has(String(event.id)) ? (
+                            <span className="flex-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-center py-1 rounded">
+                              Joined
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="flex-1 text-[10px] h-6 px-2 bg-emerald-600 hover:bg-emerald-700"
+                              icon="how_to_reg"
+                              loading={registeringId === event.id}
+                              onClick={() => handleQuickRegister(event)}
+                            >
+                              Register
+                            </Button>
+                          )
+                        ) : (
+                          <Link to="/login" className="flex-1">
+                            <Button size="sm" className="w-full text-[10px] h-6 px-2 bg-sky-600 hover:bg-sky-700" icon="login">Join</Button>
+                          </Link>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
