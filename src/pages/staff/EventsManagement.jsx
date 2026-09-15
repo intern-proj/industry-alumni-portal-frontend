@@ -7,6 +7,15 @@ import { Input, Select } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
 
+const ALLOWED_TRANSITIONS = {
+  DRAFT: ['SCHEDULED', 'CANCELLED'],
+  SCHEDULED: ['ONGOING', 'RESCHEDULED', 'CANCELLED'],
+  RESCHEDULED: ['SCHEDULED', 'ONGOING', 'CANCELLED'],
+  ONGOING: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
 export default function EventsManagement() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
@@ -20,7 +29,7 @@ export default function EventsManagement() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await eventService.getEvents();
+      const res = await eventService.getEvents({ includeDrafts: true });
       const data = res.data?.content || res.data?.data || res.data;
       setEvents(Array.isArray(data) ? data : []);
     } catch {
@@ -87,6 +96,22 @@ export default function EventsManagement() {
       header: 'Status & Lifecycle',
       render: (row) => {
         const s = (row.status || 'DRAFT').toUpperCase();
+        const allowedTargets = ALLOWED_TRANSITIONS[s] || [];
+        const isTerminal = allowedTargets.length === 0;
+
+        if (isTerminal) {
+          return (
+            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+              s === 'COMPLETED' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+            }`}>
+              <span className="material-symbols-outlined text-[13px]">
+                {s === 'COMPLETED' ? 'check_circle' : 'cancel'}
+              </span>
+              {s}
+            </span>
+          );
+        }
+
         return (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <select
@@ -94,11 +119,14 @@ export default function EventsManagement() {
               onChange={(e) => handleQuickStatusChange(row.id, e.target.value, e)}
               className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-sm"
             >
-              <option value="DRAFT">Draft</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="ONGOING">Live Now</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value={s} disabled>
+                {s === 'DRAFT' ? 'Draft (Current)' : s === 'SCHEDULED' ? 'Scheduled (Current)' : s === 'RESCHEDULED' ? 'Rescheduled (Current)' : s === 'ONGOING' ? 'Live Now (Current)' : `${s} (Current)`}
+              </option>
+              {allowedTargets.map((target) => (
+                <option key={target} value={target}>
+                  &rarr; {target === 'ONGOING' ? 'Live Now (ONGOING)' : target}
+                </option>
+              ))}
             </select>
           </div>
         );
@@ -165,6 +193,7 @@ export default function EventsManagement() {
             <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="ALL">All Statuses</option>
               <option value="SCHEDULED">Scheduled / Published</option>
+              <option value="RESCHEDULED">Rescheduled</option>
               <option value="ONGOING">Ongoing (Live)</option>
               <option value="DRAFT">Draft</option>
               <option value="COMPLETED">Completed</option>

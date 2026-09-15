@@ -219,16 +219,27 @@ export default function EventDetailManagement() {
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {event.status === 'DRAFT' && (
-            <Button
-              size="sm"
-              variant="primary"
-              icon="publish"
-              loading={updatingStatus}
-              onClick={() => handleStatusChange('SCHEDULED')}
-              className="bg-sky-600 hover:bg-sky-700 text-xs"
-            >
-              Publish Event
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                icon="publish"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('SCHEDULED')}
+                className="bg-sky-600 hover:bg-sky-700 text-xs"
+              >
+                Schedule / Publish
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('CANCELLED')}
+                className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/40"
+              >
+                Cancel Event
+              </Button>
+            </>
           )}
 
           {(event.status === 'SCHEDULED' || event.status === 'PUBLISHED') && (
@@ -241,48 +252,94 @@ export default function EventDetailManagement() {
                 onClick={() => handleStatusChange('ONGOING')}
                 className="bg-emerald-600 hover:bg-emerald-700 text-xs"
               >
-                Mark Live / Ongoing
+                Mark Ongoing / Live
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                icon="update"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('RESCHEDULED')}
+                className="text-xs text-amber-600 border-amber-200 hover:bg-amber-50 dark:border-amber-900/40"
+              >
+                Reschedule
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 loading={updatingStatus}
-                onClick={() => handleStatusChange('DRAFT')}
-                className="text-xs"
+                onClick={() => handleStatusChange('CANCELLED')}
+                className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/40"
               >
-                Revert to Draft
+                Cancel Event
+              </Button>
+            </>
+          )}
+
+          {event.status === 'RESCHEDULED' && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                icon="schedule"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('SCHEDULED')}
+                className="bg-sky-600 hover:bg-sky-700 text-xs"
+              >
+                Re-Schedule
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                icon="play_circle"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('ONGOING')}
+                className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs"
+              >
+                Mark Ongoing
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('CANCELLED')}
+                className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/40"
+              >
+                Cancel Event
               </Button>
             </>
           )}
 
           {event.status === 'ONGOING' && (
-            <Button
-              size="sm"
-              variant="primary"
-              icon="check_circle"
-              loading={updatingStatus}
-              onClick={() => handleStatusChange('COMPLETED')}
-              className="bg-purple-600 hover:bg-purple-700 text-xs"
-            >
-              Mark Completed
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                icon="check_circle"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('COMPLETED')}
+                className="bg-purple-600 hover:bg-purple-700 text-xs"
+              >
+                Mark Completed
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => handleStatusChange('CANCELLED')}
+                className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/40"
+              >
+                Cancel Event
+              </Button>
+            </>
           )}
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 font-medium">Set:</span>
-            <select
-              value={event.status || 'DRAFT'}
-              disabled={updatingStatus}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            >
-              <option value="DRAFT">Draft</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="ONGOING">Ongoing</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
+          {/* If terminal state */}
+          {(event.status === 'COMPLETED' || event.status === 'CANCELLED') && (
+            <span className="text-xs font-semibold text-slate-400 italic">
+              Terminal state reached ({event.status})
+            </span>
+          )}
         </div>
       </div>
 

@@ -248,9 +248,12 @@ export default function AdminDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {[
               { role: 'SYSTEM_ADMIN', label: 'System Admin', icon: 'shield_person', color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60' },
+              { role: 'ADMINISTRATIVE_STAFF', label: 'Admin Staff', icon: 'badge', color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60' },
+              { role: 'FACULTY_MANAGEMENT', label: 'Faculty Mgmt', icon: 'domain', color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-900/60' },
+              { role: 'FACULTY_COORDINATOR', label: 'Faculty Coord', icon: 'account_tree', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60' },
               { role: 'INTERNSHIP_COORDINATOR', label: 'Internship Coord.', icon: 'work_history', color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900/60' },
               { role: 'EVENT_COORDINATOR', label: 'Event Coord.', icon: 'event', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60' },
               { role: 'INDUSTRY_PARTNER', label: 'Industry Partner', icon: 'business_center', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60' },
@@ -258,16 +261,17 @@ export default function AdminDashboard() {
             ].map((item) => {
               const count = usersDistribution.byRole[item.role] || 0;
               return (
-                <div
+                <Link
                   key={item.role}
-                  className={`p-3.5 rounded-xl border ${item.color} flex items-center justify-between transition-all hover:scale-[1.01]`}
+                  to={`/admin/users?role=${item.role}`}
+                  className={`p-3.5 rounded-xl border ${item.color} flex items-center justify-between transition-all hover:scale-[1.02] hover:shadow-md cursor-pointer`}
                 >
                   <div className="space-y-0.5">
                     <p className="text-[11px] font-semibold opacity-85 uppercase tracking-wider">{item.label}</p>
                     <p className="text-2xl font-bold">{count}</p>
                   </div>
                   <span className="material-symbols-outlined text-[24px] opacity-80">{item.icon}</span>
-                </div>
+                </Link>
               );
             })}
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { authService } from '../../services/authService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -66,12 +66,12 @@ export const renderRoleBadge = (rawRole) => {
   let config = ROLE_CONFIG[normalized];
 
   if (!config) {
-    if (normalized.includes('ADMIN')) config = ROLE_CONFIG.SYSTEM_ADMIN;
+    if (normalized.includes('STAFF') || normalized.includes('ADMINISTRATIVE')) config = ROLE_CONFIG.ADMINISTRATIVE_STAFF;
+    else if (normalized.includes('SYSTEM_ADMIN') || (normalized.includes('ADMIN') && !normalized.includes('STAFF'))) config = ROLE_CONFIG.SYSTEM_ADMIN;
     else if (normalized.includes('MANAGEMENT')) config = ROLE_CONFIG.FACULTY_MANAGEMENT;
     else if (normalized.includes('INTERNSHIP')) config = ROLE_CONFIG.INTERNSHIP_COORDINATOR;
     else if (normalized.includes('EVENT')) config = ROLE_CONFIG.EVENT_COORDINATOR;
     else if (normalized.includes('COORDINATOR')) config = ROLE_CONFIG.FACULTY_COORDINATOR;
-    else if (normalized.includes('STAFF')) config = ROLE_CONFIG.ADMINISTRATIVE_STAFF;
     else if (normalized.includes('STUDENT')) config = ROLE_CONFIG.STUDENT;
     else if (normalized.includes('PARTNER') || normalized.includes('COMPANY') || normalized.includes('EMPLOYER')) config = ROLE_CONFIG.INDUSTRY_PARTNER;
     else if (normalized.includes('SPEAKER')) config = ROLE_CONFIG.GUEST_SPEAKER;
@@ -92,12 +92,20 @@ export const renderRoleBadge = (rawRole) => {
 };
 
 export default function UserManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || 'ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    const urlRole = searchParams.get('role');
+    if (urlRole && urlRole !== roleFilter) {
+      setRoleFilter(urlRole);
+    }
+  }, [searchParams]);
   const [creating, setCreating] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -380,7 +388,16 @@ export default function UserManagement() {
             <div>
               <Select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRoleFilter(val);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    if (val && val !== 'ALL') next.set('role', val);
+                    else next.delete('role');
+                    return next;
+                  });
+                }}
               >
                 <option value="ALL">All Roles</option>
                 <option value="SYSTEM_ADMIN">System Administrator</option>

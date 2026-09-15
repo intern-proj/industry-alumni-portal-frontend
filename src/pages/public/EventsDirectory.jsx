@@ -30,6 +30,8 @@ export default function EventsDirectory() {
         else if (Array.isArray(res.data?.data)) fetched = res.data.data;
         else if (Array.isArray(res.data?.content)) fetched = res.data.content;
         else if (Array.isArray(res.data?.data?.content)) fetched = res.data.data.content;
+        // Never show DRAFT events to public directory
+        fetched = fetched.filter((e) => e && e.status !== 'DRAFT');
         setEvents(fetched);
       })
       .catch(() => setEvents([]))
@@ -215,6 +217,12 @@ export default function EventsDirectory() {
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-600/90 text-white shadow-md backdrop-blur-md border border-purple-400/30">
                         <span className="material-symbols-outlined text-[13px]">check_circle</span>
                         Completed
+                      </span>
+                    )}
+                    {event.status === 'RESCHEDULED' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-600/90 text-white shadow-md backdrop-blur-md border border-amber-400/30">
+                        <span className="material-symbols-outlined text-[13px]">update</span>
+                        Rescheduled
                       </span>
                     )}
                     {event.status === 'CANCELLED' && (

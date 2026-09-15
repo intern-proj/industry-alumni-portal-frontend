@@ -59,6 +59,14 @@ export default function EventDetail() {
     );
   }
 
+  const isStaff = user && [
+    'SYSTEM_ADMIN',
+    'EVENT_COORDINATOR',
+    'ADMINISTRATIVE_STAFF',
+    'FACULTY_MANAGEMENT',
+    'FACULTY_COORDINATOR'
+  ].includes(user.role);
+
   if (!event) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center pt-32">
@@ -72,12 +80,37 @@ export default function EventDetail() {
     );
   }
 
+  if (event.status === 'DRAFT' && !isStaff) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center pt-32 px-4">
+        <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 shadow-inner">
+          <span className="material-symbols-outlined text-[32px]">edit_note</span>
+        </div>
+        <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">Event Not Published</p>
+        <p className="text-slate-500 mt-2 text-center max-w-md">This event is currently in draft mode and has not been published yet.</p>
+        <Link to="/events" className="mt-6 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl shadow-md transition-all">Browse Events</Link>
+      </div>
+    );
+  }
+
   const startDate = new Date(event.startDateTime || Date.now());
   const endDate = event.endDateTime ? new Date(event.endDateTime) : null;
   const isMultiDay = endDate && startDate.toDateString() !== endDate.toDateString();
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
+      {event.status === 'DRAFT' && (
+        <div className="bg-amber-500/20 border-b border-amber-500/30 text-amber-300 px-6 py-3 flex items-center justify-between backdrop-blur-md sticky top-0 z-50">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <span className="material-symbols-outlined text-amber-400 text-[18px]">warning</span>
+            Draft Preview Mode — This event is unpublished and only visible to authorized staff.
+          </div>
+          <Link to="/staff/events" className="text-xs font-bold underline hover:text-white">
+            Manage in Dashboard &rarr;
+          </Link>
+        </div>
+      )}
+
       {/* Premium Hero Banner */}
       <div className="relative w-full min-h-[440px] md:min-h-[480px] overflow-hidden bg-slate-950 flex flex-col justify-end">
         {event.coverImage ? (
@@ -113,6 +146,16 @@ export default function EventDetail() {
               <span className="px-3 py-1 rounded-full bg-rose-500/30 border border-rose-400/40 text-rose-200 text-xs font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">cancel</span>
                 Cancelled
+              </span>
+            ) : event.status === 'RESCHEDULED' ? (
+              <span className="px-3 py-1 rounded-full bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">update</span>
+                Rescheduled
+              </span>
+            ) : event.status === 'DRAFT' ? (
+              <span className="px-3 py-1 rounded-full bg-slate-500/30 border border-slate-400/40 text-slate-200 text-xs font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                Draft
               </span>
             ) : event.status && (
               <span className="px-3 py-1 rounded-full bg-white/15 border border-white/20 text-slate-200 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
