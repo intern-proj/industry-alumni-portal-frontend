@@ -29,6 +29,9 @@ export default function GuestSpeakerDashboard() {
       const profileRes = await eventService.getMe();
       setProfile(profileRes.data);
       setEditData(profileRes.data);
+      if (profileRes.data) {
+        window.dispatchEvent(new CustomEvent('speaker-profile-updated', { detail: profileRes.data }));
+      }
       
       if (profileRes.data?.id) {
         // 2. Get Events for this speaker
@@ -56,11 +59,20 @@ export default function GuestSpeakerDashboard() {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await eventService.updateSpeaker(profile.id, editData);
-      setProfile(editData);
+      const res = await eventService.updateSpeaker(profile.id, editData);
+      const updated = res.data || editData;
+      setProfile(updated);
+      setEditData(updated);
       setIsEditing(false);
+      if (window.toast) {
+        window.toast.success('Profile updated successfully');
+      }
+      window.dispatchEvent(new CustomEvent('speaker-profile-updated', { detail: updated }));
     } catch (err) {
-      window.toast.error('Failed to update profile');
+      const msg = err.response?.data?.message || 'Failed to update profile';
+      if (window.toast) {
+        window.toast.error(msg);
+      }
     } finally {
       setSavingProfile(false);
     }
@@ -126,6 +138,7 @@ export default function GuestSpeakerDashboard() {
               {isEditing ? (
                 <form onSubmit={saveProfile} className="space-y-4">
                   <Input label="Full Name" name="fullName" value={editData.fullName || ''} onChange={handleEditChange} required />
+                  <Input label="Email" name="email" type="email" value={editData.email || ''} onChange={handleEditChange} required />
                   <Input label="Company" name="company" value={editData.company || ''} onChange={handleEditChange} />
                   <Input label="Designation" name="title" value={editData.title || ''} onChange={handleEditChange} />
                   <Input label="Phone" name="phone" value={editData.phone || ''} onChange={handleEditChange} />

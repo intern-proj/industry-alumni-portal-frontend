@@ -6,7 +6,6 @@ import ThemeToggle from '../../components/ui/ThemeToggle';
 import Logo from '../../components/ui/Logo';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { validateEmail } from '../../utils/validation';
 
 export default function Login() {
   const [step, setStep] = useState(1);
@@ -21,12 +20,6 @@ export default function Login() {
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // Forgot password modal state
-  const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState('');
-  const [forgotError, setForgotError] = useState('');
 
   const { login, verifyOtp } = useAuth();
   const navigate = useNavigate();
@@ -118,26 +111,6 @@ export default function Login() {
     }
   }
 
-  async function handleForgotPassword(e) {
-    e.preventDefault();
-    setForgotError('');
-    setForgotSuccess('');
-
-    if (!validateEmail(forgotEmail)) {
-      setForgotError('Please enter a valid email address.');
-      return;
-    }
-
-    setForgotLoading(true);
-    try {
-      await authService.forgotPassword(forgotEmail.trim());
-      setForgotSuccess('Password reset instructions have been emailed to you.');
-    } catch (err) {
-      setForgotError(err.response?.data?.message || 'Unable to process reset request. Please check email address.');
-    } finally {
-      setForgotLoading(false);
-    }
-  }
 
   return (
     <main className="flex w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 relative">
@@ -256,13 +229,12 @@ export default function Login() {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="form-label mb-0">Password</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(true)}
+                  <Link
+                    to="/forgot-password"
                     className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
                   >
                     Forgot Password?
-                  </button>
+                  </Link>
                 </div>
                 <div className="relative">
                   <Input
@@ -343,52 +315,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
-      {showForgotModal && (
-        <div className="modal-overlay flex items-center justify-center p-4">
-          <div className="modal-card max-w-md w-full p-6 space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Reset Password</h3>
-              <button onClick={() => setShowForgotModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
 
-            {forgotSuccess ? (
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs">
-                {forgotSuccess}
-              </div>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Enter your registered institutional email to receive a password reset link.
-                </p>
-                {forgotError && (
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs">
-                    {forgotError}
-                  </div>
-                )}
-                <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="name@students.nsbm.ac.lk"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  required
-                />
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setShowForgotModal(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" loading={forgotLoading}>
-                    Send Reset Link
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </main>
   );
 }

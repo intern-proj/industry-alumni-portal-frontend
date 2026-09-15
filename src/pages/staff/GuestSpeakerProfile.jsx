@@ -68,9 +68,14 @@ export default function GuestSpeakerProfile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await eventService.updateSpeaker(id, editData);
-      setSpeaker(editData);
+      const res = await eventService.updateSpeaker(id, editData);
+      const updated = res.data || editData;
+      setSpeaker(updated);
+      setEditData(updated);
       setIsEditing(false);
+      if (window.toast) {
+        window.toast.success('Speaker profile updated successfully.');
+      }
     } catch (err) {
       window.toast.error(err.response?.data?.message || 'Failed to update profile.');
     } finally {
@@ -208,13 +213,13 @@ export default function GuestSpeakerProfile() {
               {isEditing ? (
                 <form onSubmit={saveEdit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input label="Full Name" name="fullName" value={editData.fullName} onChange={handleEditChange} required />
-                    <Input label="Email" name="email" value={editData.email} onChange={handleEditChange} required />
-                    <Input label="Company" name="company" value={editData.company} onChange={handleEditChange} />
-                    <Input label="Designation" name="title" value={editData.title} onChange={handleEditChange} />
-                    <Input label="Phone" name="phone" value={editData.phone} onChange={handleEditChange} />
+                    <Input label="Full Name" name="fullName" value={editData.fullName || ''} onChange={handleEditChange} required />
+                    <Input label="Email" name="email" type="email" value={editData.email || ''} onChange={handleEditChange} required />
+                    <Input label="Company" name="company" value={editData.company || ''} onChange={handleEditChange} />
+                    <Input label="Designation" name="title" value={editData.title || ''} onChange={handleEditChange} />
+                    <Input label="Phone" name="phone" value={editData.phone || ''} onChange={handleEditChange} />
                   </div>
-                  <Textarea label="Biography" name="bio" value={editData.bio} onChange={handleEditChange} rows={4} />
+                  <Textarea label="Biography" name="bio" value={editData.bio || ''} onChange={handleEditChange} rows={4} />
                   <div className="flex justify-end gap-2 pt-4">
                     <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
                     <Button type="submit" loading={saving}>Save Changes</Button>

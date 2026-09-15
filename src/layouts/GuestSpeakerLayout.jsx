@@ -1,8 +1,10 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import Logo from '../components/ui/Logo';
+import { eventService } from '../services/eventService';
+import { storageService } from '../services/storageService';
 
 const navItems = [
   { label: 'Dashboard', path: '/guest-speaker/dashboard', icon: 'dashboard' },
@@ -15,8 +17,42 @@ export default function GuestSpeakerLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [profile, setProfile] = useState(null);
 
-  const initials = user?.username?.substring(0, 2).toUpperCase() || 'GS';
+  useEffect(() => {
+    let isMounted = true;
+    eventService.getMe()
+      .then((res) => {
+        if (isMounted && res.data) {
+          setProfile(res.data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load guest speaker profile for sidebar', err);
+      });
+
+    const handleProfileUpdate = (e) => {
+      if (e?.detail) {
+        setProfile((prev) => ({ ...prev, ...e.detail }));
+      }
+    };
+    window.addEventListener('speaker-profile-updated', handleProfileUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('speaker-profile-updated', handleProfileUpdate);
+    };
+  }, []);
+
+  const displayName = profile?.fullName || user?.fullName || (user?.username && isNaN(user.username) ? user.username : null) || user?.email || 'Guest Speaker';
+
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'GS';
 
   const Sidebar = ({ onClose }) => (
     <>
@@ -73,16 +109,29 @@ export default function GuestSpeakerLayout() {
       </div>
 
       <div className={`mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
-        <div 
-          className="w-8 h-8 shrink-0 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs"
-          title={isCollapsed ? `${user?.username} (Guest Speaker)` : undefined}
-        >
-          {initials}
-        </div>
+        {profile?.photoUrl ? (
+          <img
+            src={storageService.getFileUrl(profile.photoUrl)}
+            alt={displayName}
+            className="w-8 h-8 shrink-0 rounded-xl object-cover border border-purple-500/20"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        ) : (
+          <div 
+            className="w-8 h-8 shrink-0 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs"
+            title={isCollapsed ? `${displayName} (Guest Speaker)` : undefined}
+          >
+            {initials}
+          </div>
+        )}
         {!isCollapsed && (
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.username || 'Guest Speaker'}</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">Guest Speaker</p>
+            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={displayName}>
+              {displayName}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {profile?.title || 'Guest Speaker'}
+            </p>
           </div>
         )}
       </div>

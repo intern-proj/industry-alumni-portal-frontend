@@ -24,6 +24,8 @@ import JobPostDetailPage from './pages/common/JobPostDetailPage';
 // Auth Pages
 import Login from './pages/auth/Login';
 import AdminLogin from './pages/auth/AdminLogin';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import StaffRegistrationCompletion from './pages/auth/StaffRegistrationCompletion';
 import PartnerRegistrationCompletion from './pages/auth/PartnerRegistrationCompletion';
 
@@ -124,6 +126,8 @@ function App() {
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/staff/complete-registration" element={<StaffRegistrationCompletion />} />
           <Route path="/partner/complete-registration" element={<PartnerRegistrationCompletion />} />
 
