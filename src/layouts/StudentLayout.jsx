@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
+import { storageService } from '../services/storageService';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import Logo from '../components/ui/Logo';
 import GlobalBannerBar from '../components/common/GlobalBannerBar';
@@ -90,7 +91,7 @@ export default function StudentLayout() {
       <div className={`mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
         {user?.profilePicUrl ? (
           <img 
-            src={user.profilePicUrl} 
+            src={storageService.getFileUrl(user.profilePicUrl)} 
             alt={user?.username || 'Student'} 
             className="w-8 h-8 shrink-0 rounded-xl object-cover border border-emerald-500/20"
             onError={(e) => { e.target.style.display = 'none'; }}
