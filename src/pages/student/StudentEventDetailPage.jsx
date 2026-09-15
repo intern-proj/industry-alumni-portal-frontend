@@ -467,23 +467,49 @@ export default function StudentEventDetailPage() {
             {/* Registration Status Banner */}
             {event.status === 'COMPLETED' ? (
               <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/80 space-y-3">
-                <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold text-sm">
-                  <span className="material-symbols-outlined text-[20px]">task_alt</span>
-                  Event Concluded
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold text-sm">
+                    <span className="material-symbols-outlined text-[20px]">task_alt</span>
+                    Event Concluded
+                  </div>
+                  {registration && (
+                    <Badge variant={participationService.hasSubmittedFeedback(id, registration.registrationId || registration.id, event.title) ? 'success' : 'warning'} className="text-[10px] font-bold">
+                      {participationService.hasSubmittedFeedback(id, registration.registrationId || registration.id, event.title) ? 'Feedback Given ✓' : 'Feedback Required'}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-purple-800 dark:text-purple-200 leading-relaxed">
                   {registration 
-                    ? 'This session has concluded. If you scanned the attendance QR code during the event, your attendance is recorded and certification eligibility is granted.'
+                    ? 'This session has concluded. Submitting your event evaluation will immediately unlock your verified digital certificate.'
                     : 'This session has concluded. Browse the photo gallery and session recap on this page.'}
                 </p>
                 {registration && (
-                  <Link
-                    to="/student/certificates"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 hover:underline pt-1"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
-                    Check My Certificates & Attendance
-                  </Link>
+                  <div className="pt-2 border-t border-purple-200/60 dark:border-purple-800/60 flex flex-col gap-2">
+                    {!participationService.hasSubmittedFeedback(id, registration.registrationId || registration.id, event.title) ? (
+                      <Link
+                        to={`/student/events/${id}/feedback`}
+                        state={{ registrationId: registration.registrationId || registration.id, eventTitle: event.title }}
+                        className="w-full"
+                      >
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon="rate_review"
+                          className="w-full text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm"
+                        >
+                          Provide Feedback to Unlock Certificate
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/student/certificates"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
+                        Certificate Unlocked - View in My Certificates
+                      </Link>
+                    )}
+                  </div>
                 )}
               </div>
             ) : event.status === 'CANCELLED' ? (

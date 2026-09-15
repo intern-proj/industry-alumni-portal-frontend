@@ -124,62 +124,114 @@ export default function MyEvents() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {registrations.map((reg) => (
-                <div
-                  key={reg.registrationId || reg.id}
-                  className="p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
-                >
-                  <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-bold text-base text-slate-900 dark:text-white truncate">
-                        {reg.eventTitle || `Event #${reg.eventId}`}
-                      </h4>
-                      <Badge variant="success" className="text-[10px] uppercase font-bold py-0.5">
-                        {reg.status || 'CONFIRMED'}
-                      </Badge>
-                      {reg.attendanceRecorded && (
-                        <Badge variant="info" className="text-[10px] uppercase font-bold py-0.5">
-                          Attended
+              {registrations.map((reg) => {
+                const eventDate = reg.event?.startDateTime || reg.eventStartDateTime || reg.startDateTime;
+                const regId = reg.registrationId || reg.id;
+                const hasFeedback = participationService.hasSubmittedFeedback(reg.eventId, regId, reg.eventTitle);
+
+                return (
+                  <div
+                    key={regId}
+                    className="p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                  >
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-bold text-base text-slate-900 dark:text-white truncate">
+                          {reg.eventId ? (
+                            <Link to={`/student/events/${reg.eventId}`} className="hover:text-emerald-600 dark:hover:text-emerald-400">
+                              {reg.eventTitle || `Event #${reg.eventId}`}
+                            </Link>
+                          ) : (
+                            reg.eventTitle || `Event #${reg.eventId}`
+                          )}
+                        </h4>
+                        <Badge variant="success" className="text-[10px] uppercase font-bold py-0.5">
+                          {reg.status || 'CONFIRMED'}
                         </Badge>
+                        {reg.attendanceRecorded && (
+                          <Badge variant="info" className="text-[10px] uppercase font-bold py-0.5">
+                            Attended
+                          </Badge>
+                        )}
+                        {hasFeedback ? (
+                          <Badge variant="success" className="text-[10px] uppercase font-bold py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            Feedback Submitted ✓
+                          </Badge>
+                        ) : (
+                          <Badge variant="warning" className="text-[10px] uppercase font-bold py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            Feedback Pending
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                        <span className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-emerald-500">calendar_today</span> 
+                          {eventDate ? `Event: ${new Date(eventDate).toLocaleDateString()}` : 'Event date scheduled'}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-rose-500">pin_drop</span>
+                          {reg.venueName || 'Online / Campus Venue'}
+                        </span>
+                        {reg.registeredAt && (
+                          <span>Registered: {new Date(reg.registeredAt).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
+                      {hasFeedback ? (
+                        <Link to="/student/certificates">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            icon="workspace_premium"
+                            className="text-xs text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                          >
+                            Certificate Unlocked
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Link 
+                          to={`/student/events/${reg.eventId}/feedback`}
+                          state={{ registrationId: regId, eventTitle: reg.eventTitle }}
+                        >
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            icon="rate_review"
+                            className="text-xs bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                            title="Provide feedback to claim certificate"
+                          >
+                            Give Feedback
+                          </Button>
+                        </Link>
                       )}
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px] text-emerald-500">event_available</span>
-                        Registered on {new Date(reg.registeredAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px] text-rose-500">pin_drop</span>
-                        {reg.venueName || 'Online / Campus Venue'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon="visibility"
-                      onClick={() => handleOpenQuickView(reg)}
-                      className="text-xs"
-                    >
-                      Quick View
-                    </Button>
-                    <Link to={`/student/events/${reg.eventId}`}>
                       <Button
-                        variant="primary"
+                        variant="outline"
                         size="sm"
-                        icon="arrow_forward"
-                        className="text-xs bg-emerald-600 hover:bg-emerald-700"
+                        icon="visibility"
+                        onClick={() => handleOpenQuickView(reg)}
+                        className="text-xs"
                       >
-                        Full Agenda & Details
+                        Quick View
                       </Button>
-                    </Link>
+                      <Link to={`/student/events/${reg.eventId}`}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon="arrow_forward"
+                          className="text-xs bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          Details
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

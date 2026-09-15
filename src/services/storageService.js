@@ -72,10 +72,11 @@ export const storageService = {
     api.get(`/storage/download/${id}`, { responseType: 'blob' }),
 
   // Generate file URL for image src or inline display
-  getFileUrl: (idOrUrl) => resolveFileUrl(idOrUrl, true),
+  getFileUrl: (idOrUrl, inline = true) => resolveFileUrl(idOrUrl, inline),
 
   // Generate download URL for anchor tags or preview
   getFileDownloadUrl: (idOrUrl, inline = false) => resolveFileUrl(idOrUrl, inline),
+
 
   // Delete file
   deleteFile: (id) => api.delete(`/storage/${id}`),
